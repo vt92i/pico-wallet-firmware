@@ -1,0 +1,9 @@
+#pragma once
+
+typedef enum {
+  RPC_COMMAND_HASH_MD5 = 0xF4,
+  RPC_COMMAND_HASH_SHA256 = 0xF5,
+
+  RPC_COMMAND_INITIALIZE_WALLET = 0xA0,
+  RPC_COMMAND_RESET_WALLET = 0xA1,
+} rpc_command_t;

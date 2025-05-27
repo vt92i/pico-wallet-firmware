@@ -1,0 +1,28 @@
+---
+BasedOnStyle: Google
+ColumnLimit: 120
+AlignConsecutiveMacros: AcrossEmptyLines
+IncludeCategories:
+    - Regex:           '^<ext/.*\.h>'
+      Priority:        1
+      CaseSensitive:   false
+    - Regex:           '^<.*\.h>'
+      Priority:        1
+      CaseSensitive:   false
+    - Regex:           '^"(pico|hardware)/.*"'
+      Priority:        2
+      CaseSensitive:   false
+    - Regex:           '^(\"|<)(FreeRTOS|task|queue|semphr|timers)(\.h)?(\"|>)$'
+      Priority:        3
+      CaseSensitive:   false
+    - Regex:           '^"(mbedtls)/.*"'
+      Priority:        4
+      CaseSensitive:   false
+    - Regex:           '^<.*'
+      Priority:        5
+      CaseSensitive:   false
+    - Regex:           '.*'
+      Priority:        5
+      CaseSensitive:   false
+IndentPPDirectives: BeforeHash
+...
