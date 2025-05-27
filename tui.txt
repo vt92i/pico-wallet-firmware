@@ -1,0 +1,13 @@
+pico-wallet init
+pico-wallet pair
+pico-wallet restore
+
+pico-wallet balance
+pico-wallet send
+pico-wallet receive
+pico-wallet addresses
+pico-wallet transactions
+
+pico-wallet status
+
+
