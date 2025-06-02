@@ -14,7 +14,7 @@
 #define BIP39_MNEMONIC_LENGTH (24)          // Number of words in the BIP39 mnemonic phrase
 #define PBKDF2_ROUNDS         (2048)        // Number of iterations for PBKDF2
 
-const char* const BIP39_WORDS[] = {
+static const char* const BIP39_WORDS[] = {
     "abandon",  "ability",  "able",     "about",    "above",    "absent",   "absorb",   "abstract", "absurd",
     "abuse",    "access",   "accident", "account",  "accuse",   "achieve",  "acid",     "acoustic", "acquire",
     "across",   "act",      "action",   "actor",    "actress",  "actual",   "adapt",    "add",      "addict",

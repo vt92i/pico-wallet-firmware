@@ -5,6 +5,7 @@
 
 #include "apdu_commands.h"
 #include "mbedtls/md5.h"
+#include "mbedtls/sha256.h"
 
 apdu_buffer_t apdu_handle(const apdu_buffer_t* apdu_buffer) {
   static uint8_t apdu_tx_buffer_data[APDU_MAX_TX_PACKET_SIZE] = {0};
@@ -82,6 +83,24 @@ apdu_buffer_t apdu_handle(const apdu_buffer_t* apdu_buffer) {
       }
 
       apdu_build_response(&apdu_tx_buffer, APDU_SW_OK, md5_digest, sizeof(md5_digest));
+      return apdu_tx_buffer;
+    }
+
+    case APDU_INS_HASH_SHA256: {
+      uint8_t sha256_digest[32];
+
+      int ret = mbedtls_sha256_ret(apdu_packet.data, apdu_packet.lc, sha256_digest, 0);
+      if (ret != 0) {
+        apdu_build_response(&apdu_tx_buffer, APDU_SW_INSTR_NOT_SUPPORTED, NULL, 0);
+        return apdu_tx_buffer;
+      }
+
+      apdu_build_response(&apdu_tx_buffer, APDU_SW_OK, sha256_digest, sizeof(sha256_digest));
+      return apdu_tx_buffer;
+    }
+
+    case APDU_INS_GENERATE_WALLET: {
+      apdu_build_response(&apdu_tx_buffer, APDU_SW_OK, NULL, 0);
       return apdu_tx_buffer;
     }
   }

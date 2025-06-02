@@ -1,3 +1,4 @@
+#include <hardware/gpio.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -6,14 +7,13 @@
 #include "apdu.h"
 #include "bip39.h"
 #include "bsp/board_api.h"
-#include "hardware/flash.h"
-#include "pico/flash.h"
 #include "pico/multicore.h"
 #include "queue.h"
+#include "smartcard.h"
 #include "ssd1306.h"
 #include "task.h"
 
-#define QUEUE_LENGTH 10
+#define QUEUE_LENGTH 8
 
 static QueueHandle_t usb_rx_queue, usb_tx_queue;
 
@@ -106,22 +106,45 @@ static void lcd_task(void* pvParams) {
   ssd1306_clear(&disp);
 
   for (;;) {
-    for (size_t i = 0; i < 64; ++i) {
-      ssd1306_draw_string(&disp, 0, 0, 1, BIP39_WORDS[i]);
-      ssd1306_show(&disp);
-      vTaskDelay(pdMS_TO_TICKS(500));
-      ssd1306_clear(&disp);
+    // for (size_t i = 0; i < 64; ++i) {
+    //   ssd1306_draw_string(&disp, 0, 0, 1, BIP39_WORDS[i]);
+    //   ssd1306_show(&disp);
+    //   vTaskDelay(pdMS_TO_TICKS(500));
+    //   ssd1306_clear(&disp);
+    // }
+
+    if (!gpio_get(16)) {
+      ssd1306_draw_string(&disp, 0, 0, 1, "1");
+      board_led_on();
+    } else {
+      ssd1306_draw_string(&disp, 0, 0, 1, "0");
+      board_led_off();
     }
+
+    ssd1306_show(&disp);
+    ssd1306_clear(&disp);
+
+    vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
+
+#define LCD_SDA_PIN PICO_DEFAULT_I2C_SDA_PIN
+#define LCD_SCL_PIN PICO_DEFAULT_I2C_SCL_PIN
+#define BUTTON_PIN  16
 
 void setup_gpios(void) {
   // Initialize I2C
   i2c_init(i2c_default, 400 * 1000);  // 400 kHz I2C speed
-  gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
-  gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
-  gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
-  gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
+  gpio_set_function(LCD_SDA_PIN, GPIO_FUNC_I2C);
+  gpio_set_function(LCD_SCL_PIN, GPIO_FUNC_I2C);
+  gpio_pull_up(LCD_SCL_PIN);
+  gpio_pull_up(LCD_SDA_PIN);
+
+  // Initialize  GPIO
+  gpio_init(BUTTON_PIN);
+  gpio_set_function(BUTTON_PIN, GPIO_FUNC_SIO);
+  gpio_set_dir(BUTTON_PIN, GPIO_IN);
+  gpio_pull_up(BUTTON_PIN);
 }
 
 #if (configCHECK_FOR_STACK_OVERFLOW > 0)
@@ -134,33 +157,15 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName) {
 }
 #endif /* configCHECK_FOR_STACK_OVERFLOW > 0 */
 
-void print_buf(const uint8_t* buf, size_t len) {
-  for (size_t i = 0; i < len; ++i) {
-    printf("%02x", buf[i]);
-    if (i % 16 == 15)
-      printf("\n");
-    else
-      printf(" ");
-  }
-}
-
-void __not_in_flash_func(call_flash_range_erase)(void* param) {
-  uint32_t offset = (uint32_t)param;
-  flash_range_erase(offset, FLASH_SECTOR_SIZE);
-}
-
-// This function will be called when it's safe to call flash_range_program
-void __not_in_flash_func(call_flash_range_program)(void* param) {
-  uint32_t offset = ((uintptr_t*)param)[0];
-  const uint8_t* data = (const uint8_t*)((uintptr_t*)param)[1];
-  flash_range_program(offset, data, FLASH_PAGE_SIZE);
-}
-
-#define FLASH_SIZE          (PICO_FLASH_SIZE_BYTES)  // Total flash size
-#define FLASH_STORAGE_SIZE  (4 * 1024)               // 4 KiB for storage
-#define FLASH_TARGET_OFFSET (FLASH_SIZE - FLASH_STORAGE_SIZE)
-
-const uint8_t* flash_target_contents = (const uint8_t*)(XIP_BASE + FLASH_TARGET_OFFSET);
+// void print_buf(const uint8_t* buf, size_t len) {
+//   for (size_t i = 0; i < len; ++i) {
+//     printf("%02x", buf[i]);
+//     if (i % 16 == 15)
+//       printf("\n");
+//     else
+//       printf(" ");
+//   }
+// }
 
 static void flash_task(void* pvParams) {
   (void)pvParams;
@@ -208,6 +213,8 @@ int main(void) {
   tusb_init();
 
   setup_gpios();
+
+  generate_mnemonic();  // Generate and print mnemonic for debugging
 
   usb_rx_queue = xQueueCreate(QUEUE_LENGTH, sizeof(apdu_buffer_t));
   usb_tx_queue = xQueueCreate(QUEUE_LENGTH, sizeof(apdu_buffer_t));

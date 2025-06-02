@@ -10,7 +10,7 @@
 #include "mbedtls/platform_util.h"
 #include "mbedtls/sha256.h"
 
-void bytes_to_bin(const uint8_t* bytes, size_t byte_len, char* bin_out) {
+static void bytes_to_bin(const uint8_t* bytes, size_t byte_len, char* bin_out) {
   for (size_t i = 0; i < byte_len; i++) {
     for (int bit = 7; bit >= 0; bit--) {
       *bin_out++ = ((bytes[i] >> bit) & 1) ? '1' : '0';
