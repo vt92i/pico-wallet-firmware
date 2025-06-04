@@ -1,15 +1,6 @@
-/**
- * @file mbedtls_config.h
- * @brief Configuration header for enabling/disabling mbedTLS features.
- *
- * This file defines macros to enable or customize specific modules and features
- * of the mbedTLS library.
- */
-
 #ifndef _MBEDTLS_CONFIG_H
 #define _MBEDTLS_CONFIG_H
 
-#define MBEDTLS_ERROR_C              /**< Enable error code to string conversion. */
 #define MBEDTLS_PLATFORM_ZEROIZE_ALT /**< Use alternative implementation for zeroizing memory. */
 #define MBEDTLS_MD_C                 /**< Enable generic message digest wrapper. */
 #define MBEDTLS_PKCS5_C              /**< Enable PKCS#5 functions (e.g., PBKDF2). */

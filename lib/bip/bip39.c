@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "mbedtls/error.h"
 #include "mbedtls/md.h"
 #include "mbedtls/pkcs5.h"
 #include "mbedtls/platform_util.h"
@@ -19,78 +18,15 @@ static void bytes_to_bin(const uint8_t* bytes, size_t byte_len, char* bin_out) {
   *bin_out = '\0';
 }
 
-int bip39_generate_seed(const char* mnemonic[BIP39_MNEMONIC_LENGTH], uint8_t* seed, char* error_buf,
-                        size_t error_buf_size) {
-  if (mnemonic == NULL || seed == NULL || error_buf == NULL || error_buf_size == 0) {
-    snprintf(error_buf, error_buf_size, "invalid input parameters");
-    return -1;
-  }
-
-  uint8_t m[BIP39_MNEMONIC_LENGTH * BIP39_MAX_WORD_SIZE + 1] = {0};
-
-  size_t offset = 0;
-  for (uint8_t i = 0; i < BIP39_MNEMONIC_LENGTH; i++) {
-    if (mnemonic[i] == NULL) {
-      m[0] = '\0';
-      break;
-    }
-
-    size_t word_len = strnlen(mnemonic[i], BIP39_MAX_WORD_SIZE);
-    if (offset + word_len + 1 >= sizeof(m)) break;  // +1 for space or null terminator
-
-    memcpy(m + offset, mnemonic[i], word_len);
-    offset += word_len;
-
-    if (i < BIP39_MNEMONIC_LENGTH - 1) {
-      m[offset++] = ' ';
-    }
-  }
-  m[offset] = '\0';  // Ensure null termination
-
-  const uint8_t* passphrase = (const uint8_t*)"mnemonic";
-
-  mbedtls_md_context_t ctx;
-  const mbedtls_md_info_t* md_info;
-
-  mbedtls_md_init(&ctx);
-  md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA512);
-  int ret = mbedtls_md_setup(&ctx, md_info, 1);
-
-  if (ret != 0) {
-    mbedtls_strerror(ret, error_buf, error_buf_size);
-    mbedtls_md_free(&ctx);
-    mbedtls_platform_zeroize(seed, BIP39_SEED_SIZE);
-    return ret;
-  }
-
-  ret = mbedtls_pkcs5_pbkdf2_hmac(&ctx, (const uint8_t*)m, strlen((const char*)m), passphrase,
-                                  strlen((const char*)passphrase), PBKDF2_ROUNDS, BIP39_SEED_SIZE, seed);
-
-  mbedtls_platform_zeroize(m, sizeof(m));
-  mbedtls_md_free(&ctx);
-
-  if (ret != 0) {
-    mbedtls_strerror(ret, error_buf, error_buf_size);
-    mbedtls_platform_zeroize(seed, BIP39_SEED_SIZE);
-    return ret;
-  }
-
-  return 0;
-}
-
-int bip39_generate_mnemonic(const uint8_t entropy[BIP39_ENTROPY_SIZE], char* mnemonic[BIP39_MNEMONIC_LENGTH],
-                            char* error_buf, size_t error_buf_size) {
-  if (entropy == NULL || mnemonic == NULL) {
-    snprintf(error_buf, error_buf_size, "invalid input parameters");
-    return -1;
-  }
+bip39_status_t bip39_generate_mnemonic(const uint8_t entropy[BIP39_ENTROPY_SIZE],
+                                       char* mnemonic[BIP39_MNEMONIC_LENGTH]) {
+  if (entropy == NULL || mnemonic == NULL) return BIP39_STATUS_ERR_NULL_INPUT;
 
   uint8_t sha256_digest[32];
   int ret = mbedtls_sha256_ret(entropy, BIP39_ENTROPY_SIZE, sha256_digest, 0);
   if (ret != 0) {
-    mbedtls_strerror(ret, error_buf, error_buf_size);
     mbedtls_platform_zeroize(sha256_digest, sizeof(sha256_digest));
-    return ret;
+    return BIP39_STATUS_ERR_HASH_SETUP;
   }
 
   char entropy_bin[BIP39_ENTROPY_BITS + 1] = {
@@ -110,23 +46,64 @@ int bip39_generate_mnemonic(const uint8_t entropy[BIP39_ENTROPY_SIZE], char* mne
   mbedtls_platform_zeroize(entropy_bin, sizeof(entropy_bin));
   mbedtls_platform_zeroize(sha256_bin, sizeof(sha256_bin));
 
-  for (int i = 0; i < BIP39_MNEMONIC_LENGTH; i++) {
+  for (size_t i = 0; i < BIP39_MNEMONIC_LENGTH; i++) {
     int idx = 0;
     for (int j = 0; j < 11; j++) {
       if (final_bin[i * 11 + j] == '1') {
         idx |= (1 << (10 - j));  // Convert binary to index
       }
     }
-    if (idx < sizeof(BIP39_WORDS) / sizeof(BIP39_WORDS[0])) {
-      mnemonic[i] = (char*)BIP39_WORDS[idx];
-    } else {
-      snprintf(error_buf, error_buf_size, "index out of bounds: %d", idx);
-      mbedtls_platform_zeroize(final_bin, sizeof(final_bin));
-      mbedtls_platform_zeroize(mnemonic, sizeof(char*) * BIP39_MNEMONIC_LENGTH);
-      return -1;
-    }
+    if (idx < sizeof(BIP39_WORDS) / sizeof(BIP39_WORDS[0])) mnemonic[i] = (char*)BIP39_WORDS[idx];
   }
 
   mbedtls_platform_zeroize(final_bin, sizeof(final_bin));
-  return 0;
+  return BIP39_STATUS_OK;
+}
+
+bip39_status_t bip39_generate_seed(const char* mnemonic[BIP39_MNEMONIC_LENGTH], uint8_t* seed) {
+  if (mnemonic == NULL || seed == NULL) return BIP39_STATUS_ERR_NULL_INPUT;
+
+  uint8_t m[BIP39_MNEMONIC_LENGTH * BIP39_MAX_WORD_SIZE + 1] = {0};
+
+  size_t offset = 0;
+  for (size_t i = 0; i < BIP39_MNEMONIC_LENGTH; i++) {
+    if (mnemonic[i] == NULL) return BIP39_STATUS_ERR_INVALID_WORD;
+
+    size_t word_len = strnlen(mnemonic[i], BIP39_MAX_WORD_SIZE);
+    if (offset + word_len + 1 >= sizeof(m)) break;  // +1 for space or null terminator
+
+    memcpy(m + offset, mnemonic[i], word_len);
+    offset += word_len;
+
+    if (i < BIP39_MNEMONIC_LENGTH - 1) m[offset++] = ' ';
+  }
+  m[offset] = '\0';  // Ensure null termination
+
+  const uint8_t* passphrase = (const uint8_t*)"mnemonic";
+
+  mbedtls_md_context_t ctx;
+  const mbedtls_md_info_t* md_info;
+
+  mbedtls_md_init(&ctx);
+  md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA512);
+  int ret = mbedtls_md_setup(&ctx, md_info, 1);
+
+  if (ret != 0) {
+    mbedtls_md_free(&ctx);
+    mbedtls_platform_zeroize(seed, BIP39_SEED_SIZE);
+    return BIP39_STATUS_ERR_HASH_SETUP;
+  }
+
+  ret = mbedtls_pkcs5_pbkdf2_hmac(&ctx, (const uint8_t*)m, strlen((const char*)m), passphrase,
+                                  strlen((const char*)passphrase), PBKDF2_ROUNDS, BIP39_SEED_SIZE, seed);
+
+  mbedtls_platform_zeroize(m, sizeof(m));
+  mbedtls_md_free(&ctx);
+
+  if (ret != 0) {
+    mbedtls_platform_zeroize(seed, BIP39_SEED_SIZE);
+    return BIP39_STATUS_ERR_PBKDF2;
+  }
+
+  return BIP39_STATUS_OK;
 }

@@ -1,7 +1,11 @@
+#include "smartcard.h"
+
 #include <stdint.h>
 #include <stdio.h>
 
 #include "bip39.h"
+#include "flash.h"
+#include "hardware/xip_cache.h"
 #include "mbedtls/platform_util.h"
 #include "pico/rand.h"
 
@@ -22,29 +26,39 @@ static void generate_entropy(uint8_t entropy_out[BIP39_ENTROPY_SIZE]) {
   mbedtls_platform_zeroize((void*)&rng2, sizeof(rng2));
 }
 
-void generate_mnemonic() {
+bool generate_mnemonic(char* mnemonic_out[BIP39_MNEMONIC_LENGTH]) {
   uint8_t entropy[BIP39_ENTROPY_SIZE];
-  char* mnemonic[BIP39_MNEMONIC_LENGTH] = {0};
-  uint8_t seed[BIP39_SEED_SIZE] = {0};
-
   generate_entropy(entropy);
 
-  char error_buf[128] = {0};
-  int ret = 0;
-
-  ret = bip39_generate_mnemonic(entropy, mnemonic, error_buf, sizeof(error_buf));
-  if (ret != 0) {
-    printf("Error generating mnemonic: %s\n", error_buf);
-    return;
+  printf("Entropy: \n");
+  for (uint8_t i = 0; i < BIP39_ENTROPY_SIZE; i++) {
+    printf("%02x", entropy[i]);
   }
+  printf("\n");
 
-  ret = bip39_generate_seed((const char**)mnemonic, seed, error_buf, sizeof(error_buf));
-  if (ret != 0) {
-    printf("Error generating seed: %s\n", error_buf);
-    return;
-  }
+  bip39_status_t status = bip39_generate_mnemonic(entropy, mnemonic_out);
+  if (status != BIP39_STATUS_OK) return false;
 
   mbedtls_platform_zeroize(entropy, sizeof(entropy));
-  mbedtls_platform_zeroize(mnemonic, sizeof(char*) * BIP39_MNEMONIC_LENGTH);
-  mbedtls_platform_zeroize(seed, sizeof(seed));
+  return true;
+}
+
+bool generate_seed(const char mnemonic[BIP39_MNEMONIC_LENGTH], uint8_t seed_out[BIP39_SEED_SIZE]) {
+  bip39_status_t ret = bip39_generate_seed((const char**)mnemonic, seed_out);
+  if (ret != 0) return false;
+
+  return true;
+}
+
+smartcard_status_t smartcard_get_wallet_status() {
+  xip_cache_clean_all();
+
+  printf("Seed: \n");
+  for (uint8_t i = 1; i < BIP39_SEED_SIZE + 1; i++) {
+    printf("%02x", flash_target_contents[i]);
+  }
+  printf("\n");
+
+  if (flash_target_contents[0] != 0x01) return SMARTCARD_STATUS_ERROR;
+  return SMARTCARD_STATUS_OK;
 }

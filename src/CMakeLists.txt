@@ -3,8 +3,15 @@
 add_executable(${PROJECT_NAME})
 
 # Add source files to the executable target.
-target_sources(${PROJECT_NAME} PRIVATE main.c usb_descriptors.c apdu.c
-                                       apdu_utils.c smartcard.c)
+target_sources(
+  ${PROJECT_NAME}
+  PRIVATE main.c
+          usb_descriptors.c
+          tasks.c
+          flash.c
+          apdu.c
+          apdu_utils.c
+          smartcard.c)
 
 # Add the include directory for header files.
 target_include_directories(${PROJECT_NAME}
@@ -20,6 +27,7 @@ target_link_libraries(
           pico_multicore
           hardware_i2c
           hardware_flash
+          hardware_xip_cache
           FreeRTOS-Kernel-Heap4
           tinyusb_device
           tinyusb_board

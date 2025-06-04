@@ -14,6 +14,7 @@
 
 typedef enum {
   APDU_SW_OK = 0x9000,                   // Command executed successfully
+  APDU_SW_WAITING = 0x6000,              // Processing is not done yet
   APDU_SW_CLASS_NOT_SUPPORTED = 0x6E00,  // Class not supported
   APDU_SW_INSTR_NOT_SUPPORTED = 0x6D00,  // Instruction not supported
   // APDU_SW_INCORRECT_P1_P2 = 0x6A86,      // Incorrect P1 or P2 parameters

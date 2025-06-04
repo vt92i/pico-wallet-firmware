@@ -14,6 +14,14 @@
 #define BIP39_MNEMONIC_LENGTH (24)          // Number of words in the BIP39 mnemonic phrase
 #define PBKDF2_ROUNDS         (2048)        // Number of iterations for PBKDF2
 
+typedef enum {
+  BIP39_STATUS_OK = 0,
+  BIP39_STATUS_ERR_NULL_INPUT,
+  BIP39_STATUS_ERR_INVALID_WORD,
+  BIP39_STATUS_ERR_HASH_SETUP,
+  BIP39_STATUS_ERR_PBKDF2,
+} bip39_status_t;
+
 static const char* const BIP39_WORDS[] = {
     "abandon",  "ability",  "able",     "about",    "above",    "absent",   "absorb",   "abstract", "absurd",
     "abuse",    "access",   "accident", "account",  "accuse",   "achieve",  "acid",     "acoustic", "acquire",
@@ -245,10 +253,9 @@ static const char* const BIP39_WORDS[] = {
     "youth",    "zebra",    "zero",     "zone",     "zoo",
 };
 
-int bip39_generate_seed(const char* mnemonic[BIP39_MNEMONIC_LENGTH], uint8_t* seed, char* error_buf,
-                        size_t error_buf_size);
+bip39_status_t bip39_generate_mnemonic(const uint8_t entropy[BIP39_ENTROPY_SIZE],
+                                       char* mnemonic[BIP39_MNEMONIC_LENGTH]);
 
-int bip39_generate_mnemonic(const uint8_t entropy[BIP39_ENTROPY_SIZE], char* mnemonic[BIP39_MNEMONIC_LENGTH],
-                            char* error_buf, size_t error_buf_size);
+bip39_status_t bip39_generate_seed(const char* mnemonic[BIP39_MNEMONIC_LENGTH], uint8_t* seed);
 
 #endif /* _BIP39_H_ */

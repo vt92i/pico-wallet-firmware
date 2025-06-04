@@ -1,21 +1,23 @@
-#include <hardware/gpio.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 #include "FreeRTOS.h"  // IWYU pragma: keep
-#include "FreeRTOSConfig.h"
 #include "apdu.h"
 #include "bip39.h"
 #include "bsp/board_api.h"
-#include "pico/multicore.h"
+#include "flash.h"
+#include "hardware/flash.h"
+#include "hardware/gpio.h"
+#include "mbedtls/platform_util.h"
+#include "pico/flash.h"
 #include "queue.h"
 #include "smartcard.h"
 #include "ssd1306.h"
 #include "task.h"
+#include "tasks.h"
 
-#define QUEUE_LENGTH 8
-
-static QueueHandle_t usb_rx_queue, usb_tx_queue;
+QueueHandle_t usb_rx_queue, usb_tx_queue;
+QueueHandle_t smartcard_rx_queue, smartcard_tx_queue;
+QueueHandle_t flash_rx_queue;
 
 static void usb_reader_task(void* pvParams) {
   (void)pvParams;
@@ -96,43 +98,126 @@ static void apdu_handler_task(void* pvParams) {
   }
 }
 
-static void lcd_task(void* pvParams) {
+static void smartcard_handler_task(void* pvParams) {
   (void)pvParams;
 
-  ssd1306_t disp;
-  disp.external_vcc = false;
+  smartcard_command_t command;
+  smartcard_response_t response;
 
-  ssd1306_init(&disp, 128, 32, 0x3C, i2c_default);
-  ssd1306_clear(&disp);
+  ssd1306_t display;
+  display.external_vcc = false;
+
+  ssd1306_init(&display, 128, 32, 0x3C, i2c_default);
+  ssd1306_clear(&display);
+  ssd1306_show(&display);
 
   for (;;) {
-    // for (size_t i = 0; i < 64; ++i) {
-    //   ssd1306_draw_string(&disp, 0, 0, 1, BIP39_WORDS[i]);
-    //   ssd1306_show(&disp);
-    //   vTaskDelay(pdMS_TO_TICKS(500));
-    //   ssd1306_clear(&disp);
-    // }
+    if (xQueueReceive(smartcard_rx_queue, &command, portMAX_DELAY) == pdPASS) {
+      switch (command) {
+        case SMARTCARD_INITIALIZE_WALLET: {
+          static uint8_t state = 0;
 
-    if (!gpio_get(16)) {
-      ssd1306_draw_string(&disp, 0, 0, 1, "1");
-      board_led_on();
-    } else {
-      ssd1306_draw_string(&disp, 0, 0, 1, "0");
-      board_led_off();
+          response.status = SMARTCARD_STATUS_PROCESSING;
+          response.data = state;
+          response.data_len = 1;
+
+          if (smartcard_get_wallet_status() == SMARTCARD_STATUS_OK) {
+            printf("Wallet already exists, skipping generation.\n");
+            response.status = SMARTCARD_STATUS_ERROR;
+            xQueueOverwrite(smartcard_tx_queue, &response);
+            continue;
+          }
+
+          static char* mnemonic[BIP39_MNEMONIC_LENGTH];
+          if (state == 0 && !generate_mnemonic(mnemonic)) {
+            response.status = SMARTCARD_STATUS_ERROR;
+            xQueueOverwrite(smartcard_tx_queue, &response);
+            continue;
+          }
+
+          if (state == 0) xQueueOverwrite(smartcard_tx_queue, &response);
+
+          while (state < BIP39_MNEMONIC_LENGTH) {
+            char index[4];
+            snprintf(index, sizeof(index), "%d.", state + 1);
+
+            ssd1306_clear(&display);
+            ssd1306_draw_string(&display, (128 - (strlen(index) * (8 + 2) - 2)) / 2, 0, 1, index);
+            ssd1306_draw_string(&display, (128 - (strlen(mnemonic[state]) * (8 + 2) - 2)) / 2, 16, 1, mnemonic[state]);
+            ssd1306_show(&display);
+
+            while (gpio_get(BUTTON_PIN)) {
+              xQueueOverwrite(smartcard_tx_queue, &response);
+              vTaskDelay(pdMS_TO_TICKS(10));
+            }
+
+            xQueueOverwrite(smartcard_tx_queue, &response);
+
+            state++;
+            response.status = SMARTCARD_STATUS_PROCESSING;
+            response.data = state;
+
+            vTaskDelay(pdMS_TO_TICKS(200));
+          }
+
+          uint8_t seed[BIP39_SEED_SIZE];
+          if (!generate_seed((const char*)mnemonic, seed)) {
+            response.status = SMARTCARD_STATUS_ERROR;
+            xQueueOverwrite(smartcard_tx_queue, &response);
+            continue;
+          }
+
+          mbedtls_platform_zeroize(mnemonic, sizeof(char*) * BIP39_MNEMONIC_LENGTH);
+
+          xQueueSend(flash_rx_queue, &seed, portMAX_DELAY);
+
+          response.status = SMARTCARD_STATUS_OK;
+          xQueueOverwrite(smartcard_tx_queue, &response);
+
+          ssd1306_clear(&display);
+          ssd1306_show(&display);
+
+          break;
+        }
+      }
     }
-
-    ssd1306_show(&disp);
-    ssd1306_clear(&disp);
 
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
 
-#define LCD_SDA_PIN PICO_DEFAULT_I2C_SDA_PIN
-#define LCD_SCL_PIN PICO_DEFAULT_I2C_SCL_PIN
-#define BUTTON_PIN  16
+static void flash_writer_task(void* pvParams) {
+  (void)pvParams;
 
-void setup_gpios(void) {
+  for (;;) {
+    uint8_t seed[BIP39_SEED_SIZE] = {0};
+
+    if (xQueueReceive(flash_rx_queue, &seed, portMAX_DELAY) == pdPASS) {
+      board_led_on();
+
+      uint8_t buffer[FLASH_PAGE_SIZE] __attribute__((aligned(4))) = {0};
+      buffer[0] = 0x01;  // Magic byte to indicate there is a seed stored
+      memcpy(buffer + 1, seed, BIP39_SEED_SIZE);
+
+      int rc;
+      rc = flash_safe_execute(call_flash_range_erase, (void*)FLASH_TARGET_OFFSET, UINT32_MAX);
+      hard_assert(rc == PICO_OK);
+
+      uintptr_t params[] = {FLASH_TARGET_OFFSET, (uintptr_t)buffer};
+      rc = flash_safe_execute(call_flash_range_program, params, UINT32_MAX);
+      hard_assert(rc == PICO_OK);
+
+      board_led_off();
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+}
+
+static void runit(void) {
+  board_init();
+  tusb_init();
+
   // Initialize I2C
   i2c_init(i2c_default, 400 * 1000);  // 400 kHz I2C speed
   gpio_set_function(LCD_SDA_PIN, GPIO_FUNC_I2C);
@@ -157,80 +242,25 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName) {
 }
 #endif /* configCHECK_FOR_STACK_OVERFLOW > 0 */
 
-// void print_buf(const uint8_t* buf, size_t len) {
-//   for (size_t i = 0; i < len; ++i) {
-//     printf("%02x", buf[i]);
-//     if (i % 16 == 15)
-//       printf("\n");
-//     else
-//       printf(" ");
-//   }
-// }
-
-static void flash_task(void* pvParams) {
-  (void)pvParams;
-
-  // Wait for the USB tasks to be ready
-  vTaskDelay(pdMS_TO_TICKS(1000));
-
-  // uint8_t random_data[FLASH_PAGE_SIZE];
-  // for (uint i = 0; i < FLASH_PAGE_SIZE; ++i) random_data[i] = rand() >> 16;
-  //
-  // printf("Generated random data:\n");
-  // print_buf(random_data, FLASH_PAGE_SIZE);
-
-  // Note that a whole number of sectors must be erased at a time.
-  // printf("\nErasing target region...\n");
-  // board_led_on();
-  //
-  // int rc = flash_safe_execute(call_flash_range_erase, (void*)FLASH_TARGET_OFFSET, UINT32_MAX);
-  //
-  // board_led_off();
-  // printf("status code: %d\n", rc);
-
-  // printf("Done. Read back target region:\n");
-  // print_buf(flash_target_contents, FLASH_PAGE_SIZE);
-
-  // printf("\nProgramming target region...\n");
-  // uintptr_t params[] = {FLASH_TARGET_OFFSET, (uintptr_t)random_data};
-  // rc = flash_safe_execute(call_flash_range_program, params, UINT32_MAX);
-  // hard_assert(rc == PICO_OK);
-  // printf("Done. Read back target region:\n");
-  // print_buf(flash_target_contents, FLASH_PAGE_SIZE);
-  //
-  // bool mismatch = false;
-  // for (uint i = 0; i < FLASH_PAGE_SIZE; ++i) {
-  //   if (random_data[i] != flash_target_contents[i]) mismatch = true;
-  // }
-  // if (mismatch)
-  //   printf("Programming failed!\n");
-  // else
-  //   printf("Programming successful!\n");
-}
-
 int main(void) {
-  board_init();
-  tusb_init();
-
-  setup_gpios();
-
-  generate_mnemonic();  // Generate and print mnemonic for debugging
+  runit();
 
   usb_rx_queue = xQueueCreate(QUEUE_LENGTH, sizeof(apdu_buffer_t));
   usb_tx_queue = xQueueCreate(QUEUE_LENGTH, sizeof(apdu_buffer_t));
 
-  if (usb_rx_queue == NULL || usb_tx_queue == NULL) {
-    printf("Failed to create USB queues\n");
-    return -1;  // Exit if queue creation fails
-  }
+  smartcard_rx_queue = xQueueCreate(1, sizeof(smartcard_command_t));
+  smartcard_tx_queue = xQueueCreate(1, sizeof(smartcard_response_t));
 
-  // xTaskCreate(flash_task, "Flash Task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 10UL, NULL);
+  flash_rx_queue = xQueueCreate(1, BIP39_SEED_SIZE);
 
-  xTaskCreate(usb_reader_task, "USB Reader Task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 8UL, NULL);
-  xTaskCreate(usb_writer_task, "USB Writer Task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 8UL, NULL);
+  xTaskCreate(flash_writer_task, "Flash Writer Task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 12UL, NULL);
 
-  xTaskCreate(apdu_handler_task, "APDU Handler Task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 6UL, NULL);
-  xTaskCreate(lcd_task, "LCD Task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 4UL, NULL);
+  xTaskCreate(usb_reader_task, "USB Reader Task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 10UL, NULL);
+  xTaskCreate(usb_writer_task, "USB Writer Task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 10UL, NULL);
+
+  xTaskCreate(apdu_handler_task, "APDU Handler Task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 8UL, NULL);
+  xTaskCreate(smartcard_handler_task, "Smartcard Handler Task", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 6UL,
+              NULL);
 
   // Start FreeRTOS scheduler
   vTaskStartScheduler();
