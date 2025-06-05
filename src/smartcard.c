@@ -53,12 +53,6 @@ bool generate_seed(const char mnemonic[BIP39_MNEMONIC_LENGTH], uint8_t seed_out[
 smartcard_status_t smartcard_get_wallet_status() {
   xip_cache_clean_all();
 
-  printf("Seed: \n");
-  for (uint8_t i = 1; i < BIP39_SEED_SIZE + 1; i++) {
-    printf("%02x", flash_target_contents[i]);
-  }
-  printf("\n");
-
   if (flash_target_contents[0] != 0x01) return SMARTCARD_STATUS_ERROR;
   return SMARTCARD_STATUS_OK;
 }

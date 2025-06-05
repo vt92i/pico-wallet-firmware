@@ -2,6 +2,7 @@
 
 #include "FreeRTOS.h"  // IWYU pragma: keep
 #include "apdu.h"
+#include "bip32.h"
 #include "bip39.h"
 #include "bsp/board_api.h"
 #include "flash.h"
@@ -122,17 +123,16 @@ static void smartcard_handler_task(void* pvParams) {
           response.data_len = 1;
 
           if (smartcard_get_wallet_status() == SMARTCARD_STATUS_OK) {
-            printf("Wallet already exists, skipping generation.\n");
             response.status = SMARTCARD_STATUS_ERROR;
             xQueueOverwrite(smartcard_tx_queue, &response);
-            continue;
+            break;
           }
 
           static char* mnemonic[BIP39_MNEMONIC_LENGTH];
           if (state == 0 && !generate_mnemonic(mnemonic)) {
             response.status = SMARTCARD_STATUS_ERROR;
             xQueueOverwrite(smartcard_tx_queue, &response);
-            continue;
+            break;
           }
 
           if (state == 0) xQueueOverwrite(smartcard_tx_queue, &response);
@@ -164,12 +164,12 @@ static void smartcard_handler_task(void* pvParams) {
           if (!generate_seed((const char*)mnemonic, seed)) {
             response.status = SMARTCARD_STATUS_ERROR;
             xQueueOverwrite(smartcard_tx_queue, &response);
-            continue;
+            break;
           }
 
           mbedtls_platform_zeroize(mnemonic, sizeof(char*) * BIP39_MNEMONIC_LENGTH);
-
           xQueueSend(flash_rx_queue, &seed, portMAX_DELAY);
+          mbedtls_platform_zeroize(seed, sizeof(seed));
 
           response.status = SMARTCARD_STATUS_OK;
           xQueueOverwrite(smartcard_tx_queue, &response);
@@ -177,6 +177,34 @@ static void smartcard_handler_task(void* pvParams) {
           ssd1306_clear(&display);
           ssd1306_show(&display);
 
+          break;
+        }
+
+        case SMARTCARD_RESET_WALLET: {
+          response.data = 0;
+          response.data_len = 0;
+
+          int rc = flash_safe_execute(call_flash_range_erase, (void*)FLASH_TARGET_OFFSET, UINT32_MAX);
+          if (rc != PICO_OK) {
+            response.status = SMARTCARD_STATUS_ERROR;
+            xQueueOverwrite(smartcard_tx_queue, &response);
+            break;
+          }
+
+          response.status = SMARTCARD_STATUS_OK;
+          xQueueOverwrite(smartcard_tx_queue, &response);
+
+          ssd1306_clear(&display);
+          ssd1306_show(&display);
+
+          break;
+        }
+
+        default: {
+          response.status = SMARTCARD_STATUS_ERROR;
+          response.data = 0;
+          response.data_len = 0;
+          xQueueOverwrite(smartcard_tx_queue, &response);
           break;
         }
       }

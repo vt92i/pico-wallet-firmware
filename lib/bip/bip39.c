@@ -22,7 +22,7 @@ bip39_status_t bip39_generate_mnemonic(const uint8_t entropy[BIP39_ENTROPY_SIZE]
                                        char* mnemonic[BIP39_MNEMONIC_LENGTH]) {
   if (entropy == NULL || mnemonic == NULL) return BIP39_STATUS_ERR_NULL_INPUT;
 
-  uint8_t sha256_digest[32];
+  uint8_t sha256_digest[32] = {0};
   int ret = mbedtls_sha256_ret(entropy, BIP39_ENTROPY_SIZE, sha256_digest, 0);
   if (ret != 0) {
     mbedtls_platform_zeroize(sha256_digest, sizeof(sha256_digest));
@@ -60,7 +60,7 @@ bip39_status_t bip39_generate_mnemonic(const uint8_t entropy[BIP39_ENTROPY_SIZE]
   return BIP39_STATUS_OK;
 }
 
-bip39_status_t bip39_generate_seed(const char* mnemonic[BIP39_MNEMONIC_LENGTH], uint8_t* seed) {
+bip39_status_t bip39_generate_seed(const char* mnemonic[BIP39_MNEMONIC_LENGTH], uint8_t seed[BIP39_SEED_SIZE]) {
   if (mnemonic == NULL || seed == NULL) return BIP39_STATUS_ERR_NULL_INPUT;
 
   uint8_t m[BIP39_MNEMONIC_LENGTH * BIP39_MAX_WORD_SIZE + 1] = {0};

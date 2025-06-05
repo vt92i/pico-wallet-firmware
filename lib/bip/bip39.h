@@ -256,6 +256,6 @@ static const char* const BIP39_WORDS[] = {
 bip39_status_t bip39_generate_mnemonic(const uint8_t entropy[BIP39_ENTROPY_SIZE],
                                        char* mnemonic[BIP39_MNEMONIC_LENGTH]);
 
-bip39_status_t bip39_generate_seed(const char* mnemonic[BIP39_MNEMONIC_LENGTH], uint8_t* seed);
+bip39_status_t bip39_generate_seed(const char* mnemonic[BIP39_MNEMONIC_LENGTH], uint8_t seed[BIP39_SEED_SIZE]);
 
 #endif /* _BIP39_H_ */

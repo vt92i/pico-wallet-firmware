@@ -52,7 +52,8 @@ apdu_buffer_t apdu_handle(const apdu_buffer_t* apdu_buffer) {
     }
 
     case APDU_INS_INITIALIZE_WALLET: {
-      xQueueOverwrite(smartcard_rx_queue, (void*)SMARTCARD_INITIALIZE_WALLET);
+      smartcard_command_t cmd = SMARTCARD_INITIALIZE_WALLET;
+      xQueueOverwrite(smartcard_rx_queue, &cmd);
 
       smartcard_response_t response;
       if (xQueueReceive(smartcard_tx_queue, &response, portMAX_DELAY) != pdPASS) {
@@ -62,6 +63,23 @@ apdu_buffer_t apdu_handle(const apdu_buffer_t* apdu_buffer) {
 
       apdu_build_response(&apdu_tx_buffer,
                           response.status == SMARTCARD_STATUS_ERROR ? APDU_SW_INSTR_NOT_SUPPORTED : APDU_SW_WAITING,
+                          &response.data, response.data_len);
+
+      return apdu_tx_buffer;
+    }
+
+    case APDU_INS_RESET_WALLET: {
+      smartcard_command_t cmd = SMARTCARD_RESET_WALLET;
+      xQueueOverwrite(smartcard_rx_queue, &cmd);
+
+      smartcard_response_t response;
+      if (xQueueReceive(smartcard_tx_queue, &response, portMAX_DELAY) != pdPASS) {
+        apdu_build_response(&apdu_tx_buffer, APDU_SW_INSTR_NOT_SUPPORTED, NULL, 0);
+        return apdu_tx_buffer;
+      }
+
+      apdu_build_response(&apdu_tx_buffer,
+                          response.status == SMARTCARD_STATUS_ERROR ? APDU_SW_INSTR_NOT_SUPPORTED : APDU_SW_OK,
                           &response.data, response.data_len);
 
       return apdu_tx_buffer;
