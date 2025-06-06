@@ -1,5 +1,3 @@
-#include "hardware/flash.h"
-
 #include "flash.h"
 
 const uint8_t* flash_target_contents = (const uint8_t*)(XIP_BASE + FLASH_TARGET_OFFSET);

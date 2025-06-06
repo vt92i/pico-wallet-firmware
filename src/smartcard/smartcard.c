@@ -1,13 +1,14 @@
 #include "smartcard.h"
 
 #include <stdint.h>
-#include <stdio.h>
+
+#include "hardware/xip_cache.h"
+#include "pico/rand.h"
+
+#include "mbedtls/platform_util.h"
 
 #include "bip39.h"
 #include "flash.h"
-#include "hardware/xip_cache.h"
-#include "mbedtls/platform_util.h"
-#include "pico/rand.h"
 
 static void generate_entropy(uint8_t entropy_out[BIP39_ENTROPY_SIZE]) {
   rng_128_t rng1, rng2;
@@ -29,12 +30,6 @@ static void generate_entropy(uint8_t entropy_out[BIP39_ENTROPY_SIZE]) {
 bool generate_mnemonic(char* mnemonic_out[BIP39_MNEMONIC_LENGTH]) {
   uint8_t entropy[BIP39_ENTROPY_SIZE];
   generate_entropy(entropy);
-
-  printf("Entropy: \n");
-  for (uint8_t i = 0; i < BIP39_ENTROPY_SIZE; i++) {
-    printf("%02x", entropy[i]);
-  }
-  printf("\n");
 
   bip39_status_t status = bip39_generate_mnemonic(entropy, mnemonic_out);
   if (status != BIP39_STATUS_OK) return false;

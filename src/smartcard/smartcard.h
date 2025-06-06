@@ -1,10 +1,9 @@
-#ifndef _SMARTCARD_H_
-#define _SMARTCARD_H_
+#pragma once
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "bip39.h"
-#include "stdint.h"
 
 typedef enum {
   SMARTCARD_INITIALIZE_WALLET = 0x00,
@@ -34,5 +33,3 @@ bool generate_mnemonic(char* mnemonic_out[BIP39_MNEMONIC_LENGTH]);
 bool generate_seed(const char* mnemonic, uint8_t seed_out[BIP39_SEED_SIZE]);
 
 smartcard_status_t smartcard_get_wallet_status();
-
-#endif /* _SMARTCARD_H_ */

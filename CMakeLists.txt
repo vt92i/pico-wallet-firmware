@@ -31,6 +31,3 @@ add_subdirectory(src)
 
 # Add the SSD1306 library directory
 add_subdirectory(lib/ssd1306)
-
-# Add the BIP library directory
-add_subdirectory(lib/bip)

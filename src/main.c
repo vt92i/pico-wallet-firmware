@@ -1,19 +1,22 @@
 #include <stdint.h>
 
+#include "hardware/flash.h"
+#include "hardware/gpio.h"
+#include "pico/flash.h"
+
 #include "FreeRTOS.h"  // IWYU pragma: keep
+#include "queue.h"
+#include "task.h"
+
+#include "mbedtls/platform_util.h"
+
 #include "apdu.h"
-#include "bip32.h"
+#include "apdu_dispatch.h"
 #include "bip39.h"
 #include "bsp/board_api.h"
 #include "flash.h"
-#include "hardware/flash.h"
-#include "hardware/gpio.h"
-#include "mbedtls/platform_util.h"
-#include "pico/flash.h"
-#include "queue.h"
 #include "smartcard.h"
 #include "ssd1306.h"
-#include "task.h"
 #include "tasks.h"
 
 QueueHandle_t usb_rx_queue, usb_tx_queue;

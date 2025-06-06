@@ -25,9 +25,6 @@
 
 #include "usb_descriptors.h"
 
-#include <stdint.h>
-#include <stdio.h>
-
 #include "bsp/board_api.h"
 
 //--------------------------------------------------------------------+

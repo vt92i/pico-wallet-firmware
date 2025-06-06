@@ -1,5 +1,4 @@
-#ifndef _APDU_H_
-#define _APDU_H_
+#pragma once
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -38,9 +37,3 @@ typedef struct {
   const uint8_t* data;  // Pointer to the data field (if any)
   uint8_t le;           // Expected length of the response (0 if not specified)
 } apdu_packet_t;
-
-bool apdu_parse(const apdu_buffer_t* apdu_buffer, apdu_packet_t* packet);
-void apdu_build_response(apdu_buffer_t* apdu_buffer, apdu_sw_t status, const uint8_t* data, uint16_t data_len);
-apdu_buffer_t apdu_handle(const apdu_buffer_t* apdu_buffer);
-
-#endif /* _APDU_H_ */

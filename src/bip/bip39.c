@@ -1,7 +1,6 @@
 #include "bip39.h"
 
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "mbedtls/md.h"

@@ -1,5 +1,4 @@
-#ifndef _FLASH_H_
-#define _FLASH_H_
+#pragma once
 
 #include "hardware/flash.h"
 
@@ -11,5 +10,3 @@ extern const uint8_t* flash_target_contents;
 
 void __not_in_flash_func(call_flash_range_erase)(void* param);
 void __not_in_flash_func(call_flash_range_program)(void* param);
-
-#endif /* _FLASH_H_ */

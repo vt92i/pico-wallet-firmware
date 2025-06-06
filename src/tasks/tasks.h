@@ -1,5 +1,4 @@
-#ifndef _TASKS_H_
-#define _TASKS_H_
+#pragma once
 
 #include "FreeRTOS.h"  // IWYU pragma: keep
 #include "queue.h"
@@ -13,5 +12,3 @@
 extern QueueHandle_t usb_rx_queue, usb_tx_queue;
 extern QueueHandle_t smartcard_rx_queue, smartcard_tx_queue;
 extern QueueHandle_t flash_rx_queue;
-
-#endif /* _TASKS_H_ */

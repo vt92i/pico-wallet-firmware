@@ -6,16 +6,29 @@ add_executable(${PROJECT_NAME})
 target_sources(
   ${PROJECT_NAME}
   PRIVATE main.c
-          usb_descriptors.c
-          tasks.c
-          flash.c
-          apdu.c
-          apdu_utils.c
-          smartcard.c)
+          apdu/apdu_dispatch.c
+          apdu/apdu_utils.c
+          apdu/commands/command_hash.c
+          apdu/commands/command_wallet.c
+          bip/bip39.c
+          bip/bip32.c
+          bip/bip84.c
+          smartcard/smartcard.c
+          tasks/tasks.c
+          usb/usb_descriptors.c
+          utils/flash.c)
 
 # Add the include directory for header files.
-target_include_directories(${PROJECT_NAME}
-                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include)
+target_include_directories(
+  ${PROJECT_NAME}
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include
+          ${CMAKE_CURRENT_SOURCE_DIR}/apdu
+          ${CMAKE_CURRENT_SOURCE_DIR}/apdu/commands
+          ${CMAKE_CURRENT_SOURCE_DIR}/bip
+          ${CMAKE_CURRENT_SOURCE_DIR}/smartcard
+          ${CMAKE_CURRENT_SOURCE_DIR}/tasks
+          ${CMAKE_CURRENT_SOURCE_DIR}/usb
+          ${CMAKE_CURRENT_SOURCE_DIR}/utils)
 
 # Link required libraries for the project.
 target_link_libraries(
@@ -31,7 +44,6 @@ target_link_libraries(
           FreeRTOS-Kernel-Heap4
           tinyusb_device
           tinyusb_board
-          bip
           ssd1306)
 
 # USB and UART configuration.

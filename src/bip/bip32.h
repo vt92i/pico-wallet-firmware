@@ -1,5 +1,4 @@
-#ifndef _BIP32_H_
-#define _BIP32_H_
+#pragma once
 
 #include <stdint.h>
 
@@ -15,5 +14,3 @@ typedef enum {
 } bip32_status_t;
 
 bip32_status_t bip32_generate_root_key(const uint8_t seed[BIP39_SEED_SIZE], uint8_t root_key[BIP32_ROOT_KEY_SIZE]);
-
-#endif /* _BIP32_H_ */

@@ -1,12 +1,12 @@
 #include "bip32.h"
 
 #include <stdint.h>
-#include <stdio.h>
+#include <string.h>
 
-#include "bip39.h"
 #include "mbedtls/md.h"
 #include "mbedtls/sha256.h"
-#include "string.h"
+
+#include "bip39.h"
 
 static void b58_encode(const uint8_t root_key_input[BIP32_ROOT_KEY_SIZE],
                        uint8_t root_key_output[BIP32_ROOT_KEY_SIZE]) {
