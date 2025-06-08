@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "bip39.h"
+#include "bip/bip39.h"
 
 typedef enum {
   SMARTCARD_INITIALIZE_WALLET = 0x00,

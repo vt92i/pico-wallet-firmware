@@ -1,7 +1,7 @@
+#include "apdu_utils.h"
+
 #include <stdint.h>
 #include <string.h>
-
-#include "apdu.h"
 
 bool apdu_parse(const apdu_buffer_t* apdu_buffer, apdu_packet_t* packet) {
   if (apdu_buffer->data == NULL || packet == NULL || apdu_buffer->data_len < (APDU_HEADER_SIZE + 1)) return false;

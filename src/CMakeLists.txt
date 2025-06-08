@@ -1,54 +1,46 @@
-# CMakeLists.txt for the Pico Wallet project
-
 add_executable(${PROJECT_NAME})
 
-# Add source files to the executable target.
-target_sources(
-  ${PROJECT_NAME}
-  PRIVATE main.c
-          apdu/apdu_dispatch.c
-          apdu/apdu_utils.c
-          apdu/commands/command_hash.c
-          apdu/commands/command_wallet.c
-          bip/bip39.c
-          bip/bip32.c
-          bip/bip84.c
-          smartcard/smartcard.c
-          tasks/tasks.c
-          usb/usb_descriptors.c
-          utils/flash.c)
+file(GLOB_RECURSE APDU_SOURCES CONFIGURE_DEPENDS apdu/*.c)
+file(GLOB_RECURSE BIP_SOURCES CONFIGURE_DEPENDS bip/*.c)
+file(GLOB_RECURSE SMARTCARD_SOURCES CONFIGURE_DEPENDS smartcard/*.c)
+file(GLOB_RECURSE SSD1306_SOURCES CONFIGURE_DEPENDS ssd1306/*.c)
+file(GLOB_RECURSE TASK_SOURCES CONFIGURE_DEPENDS tasks/*.c)
+file(GLOB_RECURSE USB_SOURCES CONFIGURE_DEPENDS usb/*.c)
+file(GLOB_RECURSE UTILS_SOURCES CONFIGURE_DEPENDS utils/*.c)
 
-# Add the include directory for header files.
+set(SOURCES
+    main.c
+    ${APDU_SOURCES}
+    ${BIP_SOURCES}
+    ${SMARTCARD_SOURCES}
+    ${SSD1306_SOURCES}
+    ${TASK_SOURCES}
+    ${USB_SOURCES}
+    ${UTILS_SOURCES})
+
+target_sources(${PROJECT_NAME} PRIVATE ${SOURCES})
+
 target_include_directories(
-  ${PROJECT_NAME}
-  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include
-          ${CMAKE_CURRENT_SOURCE_DIR}/apdu
-          ${CMAKE_CURRENT_SOURCE_DIR}/apdu/commands
-          ${CMAKE_CURRENT_SOURCE_DIR}/bip
-          ${CMAKE_CURRENT_SOURCE_DIR}/smartcard
-          ${CMAKE_CURRENT_SOURCE_DIR}/tasks
-          ${CMAKE_CURRENT_SOURCE_DIR}/usb
-          ${CMAKE_CURRENT_SOURCE_DIR}/utils)
+  ${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
+                          ${PROJECT_SOURCE_DIR}/include)
 
-# Link required libraries for the project.
-target_link_libraries(
-  ${PROJECT_NAME}
-  PRIVATE pico_stdlib
-          pico_unique_id
-          pico_mbedtls
-          pico_flash
-          pico_multicore
-          hardware_i2c
-          hardware_flash
-          hardware_xip_cache
-          FreeRTOS-Kernel-Heap4
-          tinyusb_device
-          tinyusb_board
-          ssd1306)
+set(CORE_LIBS
+    pico_stdlib
+    pico_unique_id
+    pico_mbedtls
+    pico_flash
+    hardware_i2c
+    hardware_flash
+    hardware_xip_cache
+    FreeRTOS-Kernel-Heap4
+    tinyusb_device
+    tinyusb_board)
 
-# USB and UART configuration.
+set(EXTERNAL_LIBS micro_ecc mpack)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE ${CORE_LIBS} ${EXTERNAL_LIBS})
+
 pico_enable_stdio_usb(${PROJECT_NAME} 0)
 pico_enable_stdio_uart(${PROJECT_NAME} 1)
 
-# Add extra outputs (e.g., UF2, bin, hex files).
 pico_add_extra_outputs(${PROJECT_NAME})

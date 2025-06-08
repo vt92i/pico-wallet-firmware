@@ -8,7 +8,3 @@
 #define BUTTON_PIN   16
 
 #define QUEUE_LENGTH 8
-
-extern QueueHandle_t usb_rx_queue, usb_tx_queue;
-extern QueueHandle_t smartcard_rx_queue, smartcard_tx_queue;
-extern QueueHandle_t flash_rx_queue;

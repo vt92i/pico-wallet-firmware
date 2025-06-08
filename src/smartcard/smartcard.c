@@ -7,8 +7,8 @@
 
 #include "mbedtls/platform_util.h"
 
-#include "bip39.h"
-#include "flash.h"
+#include "bip/bip39.h"
+#include "utils/flash.h"
 
 static void generate_entropy(uint8_t entropy_out[BIP39_ENTROPY_SIZE]) {
   rng_128_t rng1, rng2;

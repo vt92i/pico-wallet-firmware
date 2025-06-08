@@ -1,33 +1,32 @@
-# Minimum required version of CMake
 cmake_minimum_required(VERSION 3.31)
 
-# Set the project name
 set(PROJECT_NAME pico_wallet)
 
-# Specify the target Pico board
-set(PICO_BOARD pico2)
-
-# Specify the Pico platform
-set(PICO_PLATFORM rp2350-arm-s)
-
-# Import the Pico SDK
-include(pico_sdk_import.cmake)
-
-# Import the FreeRTOS Kernel
-include(FreeRTOS_Kernel_import.cmake)
-
-# Define the project and supported languages
-project(${PROJECT_NAME} C CXX ASM)
-
-# Set the C and C++ standard versions
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
-# Initialize the Pico SDK
+set(PICO_BOARD pico2)
+set(PICO_PLATFORM rp2350-arm-s)
+
+include(pico_sdk_import.cmake)
+include(FreeRTOS_Kernel_import.cmake)
+
+project(${PROJECT_NAME} C CXX ASM)
+
 pico_sdk_init()
 
-# Add the main source directory
-add_subdirectory(src)
+include(FetchContent)
 
-# Add the SSD1306 library directory
-add_subdirectory(lib/ssd1306)
+FetchContent_Declare(
+  micro_ecc
+  GIT_REPOSITORY https://github.com/kmackay/micro-ecc.git
+  GIT_TAG v1.1)
+FetchContent_MakeAvailable(micro_ecc)
+
+add_library(micro_ecc STATIC ${micro_ecc_SOURCE_DIR}/uECC.c
+                             ${micro_ecc_SOURCE_DIR}/uECC.h)
+target_include_directories(micro_ecc PUBLIC ${micro_ecc_SOURCE_DIR})
+
+add_subdirectory(lib/mpack)
+
+add_subdirectory(src)

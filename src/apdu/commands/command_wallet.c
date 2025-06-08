@@ -3,9 +3,9 @@
 #include "FreeRTOS.h"  // IWYU pragma: keep
 #include "queue.h"
 
-#include "apdu_utils.h"
-#include "smartcard.h"
-#include "tasks.h"
+#include "apdu/apdu_utils.h"
+#include "smartcard/smartcard.h"
+#include "tasks/smartcard/smartcard_handler_task.h"
 
 bool handle_initialize_wallet(const apdu_packet_t* packet, apdu_buffer_t* response) {
   smartcard_command_t cmd = SMARTCARD_INITIALIZE_WALLET;

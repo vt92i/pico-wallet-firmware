@@ -17,15 +17,15 @@ static void bytes_to_bin(const uint8_t* bytes, size_t byte_len, char* bin_out) {
   *bin_out = '\0';
 }
 
-bip39_status_t bip39_generate_mnemonic(const uint8_t entropy[BIP39_ENTROPY_SIZE],
-                                       char* mnemonic[BIP39_MNEMONIC_LENGTH]) {
+bip39_status_t bip39_generate_mnemonic(const uint8_t entropy[static BIP39_ENTROPY_SIZE],
+                                       char* mnemonic[static BIP39_MNEMONIC_LENGTH]) {
   if (entropy == NULL || mnemonic == NULL) return BIP39_STATUS_ERR_NULL_INPUT;
 
   uint8_t sha256_digest[32] = {0};
   int ret = mbedtls_sha256_ret(entropy, BIP39_ENTROPY_SIZE, sha256_digest, 0);
   if (ret != 0) {
     mbedtls_platform_zeroize(sha256_digest, sizeof(sha256_digest));
-    return BIP39_STATUS_ERR_HASH_SETUP;
+    return BIP39_STATUS_ERR_SHA256;
   }
 
   char entropy_bin[BIP39_ENTROPY_BITS + 1] = {
@@ -47,11 +47,9 @@ bip39_status_t bip39_generate_mnemonic(const uint8_t entropy[BIP39_ENTROPY_SIZE]
 
   for (size_t i = 0; i < BIP39_MNEMONIC_LENGTH; i++) {
     int idx = 0;
-    for (int j = 0; j < 11; j++) {
-      if (final_bin[i * 11 + j] == '1') {
-        idx |= (1 << (10 - j));  // Convert binary to index
-      }
-    }
+    for (int j = 0; j < 11; j++)
+      if (final_bin[i * 11 + j] == '1') idx |= (1 << (10 - j));  // Convert binary to index
+
     if (idx < sizeof(BIP39_WORDS) / sizeof(BIP39_WORDS[0])) mnemonic[i] = (char*)BIP39_WORDS[idx];
   }
 
@@ -59,7 +57,8 @@ bip39_status_t bip39_generate_mnemonic(const uint8_t entropy[BIP39_ENTROPY_SIZE]
   return BIP39_STATUS_OK;
 }
 
-bip39_status_t bip39_generate_seed(const char* mnemonic[BIP39_MNEMONIC_LENGTH], uint8_t seed[BIP39_SEED_SIZE]) {
+bip39_status_t bip39_generate_seed(const char* mnemonic[static BIP39_MNEMONIC_LENGTH],
+                                   uint8_t seed[static BIP39_SEED_SIZE]) {
   if (mnemonic == NULL || seed == NULL) return BIP39_STATUS_ERR_NULL_INPUT;
 
   uint8_t m[BIP39_MNEMONIC_LENGTH * BIP39_MAX_WORD_SIZE + 1] = {0};
@@ -90,7 +89,7 @@ bip39_status_t bip39_generate_seed(const char* mnemonic[BIP39_MNEMONIC_LENGTH], 
   if (ret != 0) {
     mbedtls_md_free(&ctx);
     mbedtls_platform_zeroize(seed, BIP39_SEED_SIZE);
-    return BIP39_STATUS_ERR_HASH_SETUP;
+    return BIP39_STATUS_ERR_SHA256;
   }
 
   ret = mbedtls_pkcs5_pbkdf2_hmac(&ctx, (const uint8_t*)m, strlen((const char*)m), passphrase,

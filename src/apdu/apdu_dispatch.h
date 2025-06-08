@@ -1,9 +1,9 @@
 #pragma once
 
 #include "apdu.h"
-#include "apdu_commands.h"
-#include "commands/command_hash.h"
-#include "commands/command_wallet.h"
+#include "apdu/commands/apdu_commands.h"
+#include "apdu/commands/command_hash.h"
+#include "apdu/commands/command_wallet.h"
 
 typedef bool (*apdu_command_fn)(const apdu_packet_t*, apdu_buffer_t*);
 

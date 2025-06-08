@@ -3,7 +3,7 @@
 #include "mbedtls/md5.h"
 #include "mbedtls/sha256.h"
 
-#include "apdu_utils.h"
+#include "apdu/apdu_utils.h"
 
 bool handle_md5(const apdu_packet_t* packet, apdu_buffer_t* response) {
   uint8_t md5_digest[16];
