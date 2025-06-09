@@ -1,6 +1,7 @@
 #include "bech32.h"
 
 #include <ctype.h>
+#include <stdint.h>
 #include <string.h>
 
 static const char *charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
@@ -14,7 +15,7 @@ static const int8_t charset_lut[128] = {
 static uint32_t polymod(const uint8_t *values, size_t length) {
   uint32_t chk = 1;
   for (size_t i = 0; i < length; i++) {
-    uint8_t top = chk >> 25;
+    uint8_t top = (uint8_t)(chk >> 25);
     chk = (chk & 0x1FFFFFF) << 5 ^ values[i];
     if (top & 1) chk ^= 0X3B6A57B2;
     if (top & 2) chk ^= 0X26508E6D;
@@ -51,7 +52,7 @@ int bech32_encode(const char *hrp, const uint8_t *data, size_t data_len, char *o
   for (size_t i = 0; i < hrp_len; i++) {
     char c = hrp[i];
     if (c < 33 || c > 126 || isupper(c)) return 1;
-    output[i] = tolower(c);
+    output[i] = (char)tolower(c);
   }
   output[hrp_len] = '1';
 
@@ -79,7 +80,7 @@ int bech32_decode(char *hrp, uint8_t *data, size_t *data_len, const char *input)
   for (size_t i = 0; i < pos; i++) {
     char c = input[i];
     if (c < 33 || c > 126 || isupper(c)) return 1;
-    hrp[i] = tolower(c);
+    hrp[i] = (char)tolower(c);
   }
   hrp[pos] = '\0';
 
@@ -89,7 +90,7 @@ int bech32_decode(char *hrp, uint8_t *data, size_t *data_len, const char *input)
   for (size_t i = 0; i < dp_len; i++) {
     int8_t v = charset_lut[(uint8_t)input[pos + 1 + i]];
     if (v == -1) return 1;
-    data[i] = v;
+    data[i] = (uint8_t)v;
   }
 
   uint8_t buf[BECH32_MAX_HRP_LEN * 2 + 1 + BECH32_MAX_DATA_LEN + 6];
@@ -108,8 +109,8 @@ int convert_bits(uint8_t *out, size_t *out_len, int to_bits, int from_bits, cons
   uint32_t acc = 0;
   int bits = 0;
   size_t outpos = 0;
-  uint32_t maxv = (1 << to_bits) - 1;
-  uint32_t max_acc = (1 << (from_bits + to_bits - 1)) - 1;
+  uint32_t maxv = (uint32_t)((1 << to_bits) - 1);
+  uint32_t max_acc = (uint32_t)((1 << (from_bits + to_bits - 1)) - 1);
 
   for (size_t i = 0; i < in_len; i++) {
     uint8_t value = in[i];
@@ -119,14 +120,14 @@ int convert_bits(uint8_t *out, size_t *out_len, int to_bits, int from_bits, cons
     while (bits >= to_bits) {
       bits -= to_bits;
       if (outpos >= *out_len) return 1;
-      out[outpos++] = (acc >> bits) & maxv;
+      out[outpos++] = (uint8_t)((acc >> bits) & maxv);
     }
   }
 
   if (pad) {
     if (bits) {
       if (outpos >= *out_len) return 1;
-      out[outpos++] = (acc << (to_bits - bits)) & maxv;
+      out[outpos++] = (uint8_t)((acc << (to_bits - bits)) & maxv);
     }
   } else if (bits >= from_bits || ((acc << (to_bits - bits)) & maxv))
     return 1;

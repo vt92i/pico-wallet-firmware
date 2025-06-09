@@ -11,7 +11,7 @@ int segwit_address_encode(char *output, size_t output_len, const char *hrp, int 
 
   if (witver < 0 || witver > 16 || witprog_len < 2 || witprog_len > 40) return 1;
 
-  data[0] = witver;
+  data[0] = (uint8_t)witver;
   if (convert_bits(data + 1, &datalen, 5, 8, witprog, witprog_len, 1) != 0) return 1;
   datalen += 1;
 

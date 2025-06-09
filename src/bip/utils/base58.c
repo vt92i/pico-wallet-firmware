@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 static inline size_t b58_encoded_max_size(size_t input_len) { return (input_len * 138) / 100 + 2; }
@@ -20,7 +21,7 @@ int b58_encode(const uint8_t *input, size_t input_len, char *output, size_t outp
     size_t j = 0;
     for (; j < size || carry; j++) {
       carry += 256 * buffer[j];
-      buffer[j] = carry % 58;
+      buffer[j] = (uint8_t)(carry % 58);
       carry /= 58;
     }
     size = j;
@@ -58,7 +59,7 @@ int b58_decode(const char *input, uint8_t *output, size_t output_len) {
       if (j >= output_len) return 1;
 
       carry += 58 * buffer[j];
-      buffer[j] = carry & 0xFF;
+      buffer[j] = (uint8_t)(carry & 0xFF);
       carry >>= 8;
     }
     size = j;

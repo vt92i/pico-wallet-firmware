@@ -28,7 +28,7 @@ void usb_reader_task(void* pvParams) {
         board_led_on();
 
         uint32_t read_len = tud_cdc_read(rx_buffer.data + buffer_offset, sizeof(rx_buffer_data) - buffer_offset);
-        buffer_offset += read_len;
+        buffer_offset += (uint16_t)read_len;
 
         if (rx_buffer.data_len == 0 && buffer_offset >= APDU_HEADER_SIZE + 1) {
           uint8_t lc = rx_buffer.data[4];

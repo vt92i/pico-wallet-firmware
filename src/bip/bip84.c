@@ -33,7 +33,7 @@ static int ckd_priv(const uint8_t *k_par, const uint8_t *c_par, uint32_t index, 
   mbedtls_mpi_init(&k_child_mpi);
   mbedtls_ecp_group_init(&grp);
 
-  data[33] = (index >> 24) & 0xFF;
+  data[33] = (uint8_t)((index >> 24) & 0xFF);
   data[34] = (index >> 16) & 0xFF;
   data[35] = (index >> 8) & 0xFF;
   data[36] = index & 0xFF;
@@ -169,7 +169,7 @@ bip84_status_t bip84_get_address(const char root_key[static BIP32_ROOT_KEY_SIZE]
     return BIP84_STATUS_ERR_WITPROG;
   }
 
-  if (segwit_address_encode(address, 43, hrp, witver, witprog, sizeof(witprog)) != 0) {
+  if (segwit_address_encode(address, BIP84_ADDRESS_SIZE, hrp, witver, witprog, sizeof(witprog)) != 0) {
     mbedtls_platform_zeroize(private_key, sizeof(private_key));
     return BIP84_STATUS_ERR_SEGWIT_ENCODE;
   }

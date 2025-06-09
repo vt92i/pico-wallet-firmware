@@ -18,8 +18,14 @@ set(SOURCES
 
 foreach(SOURCE IN LISTS SOURCES)
   set_source_files_properties(
-    ${SOURCE} PROPERTIES COMPILE_FLAGS "-Wall -Wextra -Wpedantic -Werror")
+    ${SOURCE}
+    PROPERTIES
+      COMPILE_FLAGS
+      "-Wall -Wextra -Wpedantic -Wconversion -Wfloat-conversion -Wsign-conversion"
+  )
 endforeach()
+
+target_compile_options(${PROJECT_NAME} PRIVATE --sysroot=/usr/arm-none-eabi)
 
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCES})
 
