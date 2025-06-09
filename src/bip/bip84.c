@@ -124,9 +124,6 @@ static int P2WPKH_generate_witprog(const uint8_t *public_key, uint8_t *witprog) 
 
 bip84_status_t bip84_get_address(const char root_key[static BIP32_ROOT_KEY_SIZE], const uint32_t index,
                                  char address[static BIP84_ADDRESS_SIZE]) {
-  if (!root_key || !address) return BIP84_STATUS_ERR_NULL_INPUT;
-  if (index < 0) return BIP84_STATUS_ERR_NULL_INPUT;
-
   uint8_t decoded_key[86] = {0};
   if (b58_decode(root_key, decoded_key, sizeof(decoded_key)) != 0) return BIP84_STATUS_ERR_BASE58;
 

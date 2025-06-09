@@ -13,9 +13,8 @@
 
 #include "bip/bip39.h"
 #include "smartcard/smartcard.h"
-#include "ssd1306/ssd1306.h"
+#include "ssd1306.h"
 #include "tasks/flash/flash_writer_task.h"
-#include "tasks/tasks.h"
 #include "utils/flash.h"
 
 QueueHandle_t smartcard_rx_queue, smartcard_tx_queue;
@@ -67,7 +66,7 @@ void smartcard_handler_task(void* pvParams) {
             ssd1306_draw_string(&display, (128 - (strlen(mnemonic[state]) * (8 + 2) - 2)) / 2, 16, 1, mnemonic[state]);
             ssd1306_show(&display);
 
-            while (gpio_get(BUTTON_PIN)) {
+            while (gpio_get(16)) {
               xQueueOverwrite(smartcard_tx_queue, &response);
               vTaskDelay(pdMS_TO_TICKS(10));
             }
@@ -82,7 +81,7 @@ void smartcard_handler_task(void* pvParams) {
           }
 
           uint8_t seed[BIP39_SEED_SIZE];
-          if (!generate_seed((const char*)mnemonic, seed)) {
+          if (!generate_seed((const char**)mnemonic, seed)) {
             response.status = SMARTCARD_STATUS_ERROR;
             xQueueOverwrite(smartcard_tx_queue, &response);
             break;

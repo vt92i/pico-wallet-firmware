@@ -4,6 +4,8 @@
 
 int segwit_address_encode(char *output, size_t output_len, const char *hrp, int witver, const uint8_t *witprog,
                           size_t witprog_len) {
+  (void)output_len;
+
   uint8_t data[1 + 65];
   size_t datalen = sizeof(data);
 

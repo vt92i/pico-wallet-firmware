@@ -1,11 +1,12 @@
 #include "apdu_dispatch.h"
 
 #include <stddef.h>
+#include <stdio.h>
 
 #include "apdu_utils.h"
 
 apdu_buffer_t apdu_handle(const apdu_buffer_t* apdu_buffer) {
-  static uint8_t apdu_tx_buffer_data[APDU_MAX_TX_PACKET_SIZE] = {0};
+  uint8_t apdu_tx_buffer_data[APDU_MAX_TX_PACKET_SIZE] = {0};
   apdu_buffer_t apdu_tx_buffer = {
       .data = apdu_tx_buffer_data,
       .data_len = 0,

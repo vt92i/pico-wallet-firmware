@@ -1,4 +1,3 @@
-
 #include "hardware/gpio.h"
 #include "hardware/i2c.h"
 
@@ -17,6 +16,7 @@
 
 #if (configCHECK_FOR_STACK_OVERFLOW > 0)
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName) {
+  (void)xTask;
   // This function will be called when a stack overflow is detected.
   // You can place a breakpoint here or log the error.
   taskDISABLE_INTERRUPTS();
@@ -25,15 +25,13 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName) {
 }
 #endif /* configCHECK_FOR_STACK_OVERFLOW > 0 */
 
-#define LCD_SDA_PIN  PICO_DEFAULT_I2C_SDA_PIN
-#define LCD_SCL_PIN  PICO_DEFAULT_I2C_SCL_PIN
-#define BUTTON_PIN   16
-
-#define QUEUE_LENGTH 8
+#define LCD_SDA_PIN PICO_DEFAULT_I2C_SDA_PIN
+#define LCD_SCL_PIN PICO_DEFAULT_I2C_SCL_PIN
+#define BUTTON_PIN  16
 
 static void runit(void) {
   board_init();
-  tusb_init();
+  tusb_init(void);
 
   // Initialize I2C
   i2c_init(i2c_default, 400 * 1000);  // 400 kHz I2C speed
@@ -52,8 +50,8 @@ static void runit(void) {
 int main(void) {
   runit();
 
-  usb_rx_queue = xQueueCreate(QUEUE_LENGTH, sizeof(apdu_buffer_t));
-  usb_tx_queue = xQueueCreate(QUEUE_LENGTH, sizeof(apdu_buffer_t));
+  usb_rx_queue = xQueueCreate(1, sizeof(apdu_buffer_t));
+  usb_tx_queue = xQueueCreate(1, sizeof(apdu_buffer_t));
 
   smartcard_rx_queue = xQueueCreate(1, sizeof(smartcard_command_t));
   smartcard_tx_queue = xQueueCreate(1, sizeof(smartcard_response_t));

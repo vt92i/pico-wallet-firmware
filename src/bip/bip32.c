@@ -11,8 +11,6 @@
 
 bip32_status_t bip32_generate_root_key(const uint8_t seed[static BIP39_SEED_SIZE],
                                        char root_key[static BIP32_ROOT_KEY_SIZE]) {
-  if (seed == NULL || root_key == NULL) return BIP32_STATUS_ERR_NULL_INPUT;
-
   const uint8_t xprv_version[4] = {0x04, 0x35, 0x83, 0x94};  // Testnet version
   const uint8_t xprv_depth[1] = {0x00};
   const uint8_t xprv_fingerprint[4] = {0x00, 0x00, 0x00, 0x00};

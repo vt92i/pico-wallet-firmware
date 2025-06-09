@@ -12,15 +12,11 @@
 #define APDU_MAX_TX_PACKET_SIZE (APDU_MAX_DATA_LEN + 2)  // Maximum APDU response size (Data + SW1 + SW2)
 
 typedef enum {
-  APDU_SW_OK = 0x9000,       // Command executed successfully
-  APDU_SW_WAITING = 0x6000,  // Processing is not done yet
+  APDU_SW_OK = 0x9000,               // Command executed successfully
+  APDU_SW_EXECUTION_ERROR = 0x6F00,  // Execution error
 
   APDU_SW_CLASS_NOT_SUPPORTED = 0x6E00,  // Class not supported
   APDU_SW_INSTR_NOT_SUPPORTED = 0x6D00,  // Instruction not supported
-
-  // APDU_SW_INCORRECT_P1_P2 = 0x6A86,      // Incorrect P1 or P2 parameters
-  // APDU_SW_WRONG_DATA = 0x6A80,    // Wrong data format
-  // APDU_SW_WRONG_LENGTH = 0x6700,  // Wrong length
 } apdu_sw_t;
 
 typedef struct {

@@ -27,9 +27,7 @@ typedef struct {
   smartcard_status_t status;
 } smartcard_response_t;
 
-static void generate_entropy(uint8_t entropy_out[BIP39_ENTROPY_SIZE]);
+bool generate_mnemonic(char* mnemonic[BIP39_MNEMONIC_LENGTH]);
+bool generate_seed(const char* mnemonic[static BIP39_MNEMONIC_LENGTH], uint8_t seed[static BIP39_SEED_SIZE]);
 
-bool generate_mnemonic(char* mnemonic_out[BIP39_MNEMONIC_LENGTH]);
-bool generate_seed(const char* mnemonic, uint8_t seed_out[BIP39_SEED_SIZE]);
-
-smartcard_status_t smartcard_get_wallet_status();
+smartcard_status_t smartcard_get_wallet_status(void);

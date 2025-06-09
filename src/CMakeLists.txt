@@ -3,7 +3,6 @@ add_executable(${PROJECT_NAME})
 file(GLOB_RECURSE APDU_SOURCES CONFIGURE_DEPENDS apdu/*.c)
 file(GLOB_RECURSE BIP_SOURCES CONFIGURE_DEPENDS bip/*.c)
 file(GLOB_RECURSE SMARTCARD_SOURCES CONFIGURE_DEPENDS smartcard/*.c)
-file(GLOB_RECURSE SSD1306_SOURCES CONFIGURE_DEPENDS ssd1306/*.c)
 file(GLOB_RECURSE TASK_SOURCES CONFIGURE_DEPENDS tasks/*.c)
 file(GLOB_RECURSE USB_SOURCES CONFIGURE_DEPENDS usb/*.c)
 file(GLOB_RECURSE UTILS_SOURCES CONFIGURE_DEPENDS utils/*.c)
@@ -13,10 +12,14 @@ set(SOURCES
     ${APDU_SOURCES}
     ${BIP_SOURCES}
     ${SMARTCARD_SOURCES}
-    ${SSD1306_SOURCES}
     ${TASK_SOURCES}
     ${USB_SOURCES}
     ${UTILS_SOURCES})
+
+foreach(SOURCE IN LISTS SOURCES)
+  set_source_files_properties(
+    ${SOURCE} PROPERTIES COMPILE_FLAGS "-Wall -Wextra -Wpedantic -Werror")
+endforeach()
 
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCES})
 
@@ -36,7 +39,7 @@ set(CORE_LIBS
     tinyusb_device
     tinyusb_board)
 
-set(EXTERNAL_LIBS micro_ecc mpack)
+set(EXTERNAL_LIBS micro_ecc ssd1306)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CORE_LIBS} ${EXTERNAL_LIBS})
 

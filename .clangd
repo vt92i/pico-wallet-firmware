@@ -1,2 +1,10 @@
 CompileFlags:
-  Add: [-I/usr/arm-none-eabi/include]
+  Add: 
+    - "--target=arm-none-eabi"
+    - "-mcpu=cortex-m33"
+    - "-I/usr/arm-none-eabi/include"
+    - "-I/usr/lib/gcc/arm-none-eabi/14.2.0/include"
+    - "--sysroot=/usr/arm-none-eabi/include"
+    - "--sysroot=/usr/lib/gcc/arm-none-eabi/14.2.0/include"
+    - "-ferror-limit=0"
+  Compiler: "clang"

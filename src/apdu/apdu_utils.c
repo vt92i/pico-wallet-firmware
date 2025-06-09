@@ -11,7 +11,7 @@ bool apdu_parse(const apdu_buffer_t* apdu_buffer, apdu_packet_t* packet) {
   packet->p1 = apdu_buffer->data[2];
   packet->p2 = apdu_buffer->data[3];
 
-  if (apdu_buffer->data[4] > APDU_MAX_DATA_LEN) return false;
+  // if (apdu_buffer->data[4] > APDU_MAX_DATA_LEN) return false;
   packet->lc = apdu_buffer->data[4];
 
   uint16_t required_len = APDU_HEADER_SIZE + 1 + packet->lc + (packet->lc > 0 ? 1 : 0);

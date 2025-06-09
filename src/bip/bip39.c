@@ -19,8 +19,6 @@ static void bytes_to_bin(const uint8_t* bytes, size_t byte_len, char* bin_out) {
 
 bip39_status_t bip39_generate_mnemonic(const uint8_t entropy[static BIP39_ENTROPY_SIZE],
                                        char* mnemonic[static BIP39_MNEMONIC_LENGTH]) {
-  if (entropy == NULL || mnemonic == NULL) return BIP39_STATUS_ERR_NULL_INPUT;
-
   uint8_t sha256_digest[32] = {0};
   int ret = mbedtls_sha256_ret(entropy, BIP39_ENTROPY_SIZE, sha256_digest, 0);
   if (ret != 0) {
@@ -46,8 +44,8 @@ bip39_status_t bip39_generate_mnemonic(const uint8_t entropy[static BIP39_ENTROP
   mbedtls_platform_zeroize(sha256_bin, sizeof(sha256_bin));
 
   for (size_t i = 0; i < BIP39_MNEMONIC_LENGTH; i++) {
-    int idx = 0;
-    for (int j = 0; j < 11; j++)
+    size_t idx = 0;
+    for (size_t j = 0; j < 11; j++)
       if (final_bin[i * 11 + j] == '1') idx |= (1 << (10 - j));  // Convert binary to index
 
     if (idx < sizeof(BIP39_WORDS) / sizeof(BIP39_WORDS[0])) mnemonic[i] = (char*)BIP39_WORDS[idx];
@@ -59,8 +57,6 @@ bip39_status_t bip39_generate_mnemonic(const uint8_t entropy[static BIP39_ENTROP
 
 bip39_status_t bip39_generate_seed(const char* mnemonic[static BIP39_MNEMONIC_LENGTH],
                                    uint8_t seed[static BIP39_SEED_SIZE]) {
-  if (mnemonic == NULL || seed == NULL) return BIP39_STATUS_ERR_NULL_INPUT;
-
   uint8_t m[BIP39_MNEMONIC_LENGTH * BIP39_MAX_WORD_SIZE + 1] = {0};
 
   size_t offset = 0;

@@ -12,9 +12,9 @@ QueueHandle_t usb_rx_queue;
 void usb_reader_task(void* pvParams) {
   (void)pvParams;
 
-  uint8_t apdu_rx_buffer_data[APDU_MAX_RX_PACKET_SIZE] = {0};
-  apdu_buffer_t apdu_rx_buffer = {
-      .data = apdu_rx_buffer_data,
+  uint8_t rx_buffer_data[APDU_MAX_RX_PACKET_SIZE] = {0};
+  apdu_buffer_t rx_buffer = {
+      .data = rx_buffer_data,
       .data_len = 0,
   };
 
@@ -27,23 +27,27 @@ void usb_reader_task(void* pvParams) {
       if (tud_cdc_available()) {
         board_led_on();
 
-        uint32_t read_len =
-            tud_cdc_read(apdu_rx_buffer.data + buffer_offset, sizeof(apdu_rx_buffer_data) - buffer_offset);
+        uint32_t read_len = tud_cdc_read(rx_buffer.data + buffer_offset, sizeof(rx_buffer_data) - buffer_offset);
         buffer_offset += read_len;
 
-        if (apdu_rx_buffer.data_len == 0 && buffer_offset >= APDU_HEADER_SIZE + 1) {
-          uint8_t lc = apdu_rx_buffer.data[4];
-          apdu_rx_buffer.data_len = APDU_HEADER_SIZE + 1 /* Lc */ + lc + 1 /* Le */;
+        if (rx_buffer.data_len == 0 && buffer_offset >= APDU_HEADER_SIZE + 1) {
+          uint8_t lc = rx_buffer.data[4];
+          rx_buffer.data_len = APDU_HEADER_SIZE + 1 /* Lc */ + lc + 1 /* Le */;
+          if (rx_buffer.data_len > sizeof(rx_buffer_data)) {
+            rx_buffer.data_len = 0;
+            buffer_offset = 0;
+          }
         }
 
-        if (apdu_rx_buffer.data_len > 0 && buffer_offset >= apdu_rx_buffer.data_len) {
-          xQueueSend(usb_rx_queue, &apdu_rx_buffer, portMAX_DELAY);
-          apdu_rx_buffer.data_len = 0;
+        if (rx_buffer.data_len > 0 && buffer_offset >= rx_buffer.data_len) {
+          xQueueSend(usb_rx_queue, &rx_buffer, portMAX_DELAY);
+          rx_buffer.data_len = 0;
           buffer_offset = 0;
         }
-      }
-    }
-    board_led_off();
+      } else
+        board_led_off();
+    } else
+      board_led_off();
 
     vTaskDelay(pdMS_TO_TICKS(10));
   }
