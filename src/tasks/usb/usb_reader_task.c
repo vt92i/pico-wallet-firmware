@@ -4,16 +4,16 @@
 #include "queue.h"
 #include "task.h"
 
-#include "apdu/apdu.h"
 #include "bsp/board_api.h"
+#include "rpc/rpc.h"
 
 QueueHandle_t usb_rx_queue;
 
 void usb_reader_task(void* pvParams) {
   (void)pvParams;
 
-  uint8_t rx_buffer_data[APDU_MAX_RX_PACKET_SIZE] = {0};
-  apdu_buffer_t rx_buffer = {
+  uint8_t rx_buffer_data[RPC_MAX_RX_PACKET_SIZE] = {0};
+  rpc_buffer_t rx_buffer = {
       .data = rx_buffer_data,
       .data_len = 0,
   };
@@ -30,16 +30,15 @@ void usb_reader_task(void* pvParams) {
         uint32_t read_len = tud_cdc_read(rx_buffer.data + buffer_offset, sizeof(rx_buffer_data) - buffer_offset);
         buffer_offset += (uint16_t)read_len;
 
-        if (rx_buffer.data_len == 0 && buffer_offset >= APDU_HEADER_SIZE + 1) {
-          uint8_t lc = rx_buffer.data[4];
-          rx_buffer.data_len = APDU_HEADER_SIZE + 1 /* Lc */ + lc + 1 /* Le */;
+        if (rx_buffer.data_len == 0 && buffer_offset >= RPC_HEADER_SIZE + RPC_CMD_SIZE) {
+          rx_buffer.data_len = (uint16_t)((rx_buffer.data[0] << 8) | rx_buffer.data[1]);
           if (rx_buffer.data_len > sizeof(rx_buffer_data)) {
             rx_buffer.data_len = 0;
             buffer_offset = 0;
           }
         }
 
-        if (rx_buffer.data_len > 0 && buffer_offset >= rx_buffer.data_len) {
+        if (buffer_offset == RPC_HEADER_SIZE + RPC_CMD_SIZE + rx_buffer.data_len) {
           xQueueSend(usb_rx_queue, &rx_buffer, portMAX_DELAY);
           rx_buffer.data_len = 0;
           buffer_offset = 0;

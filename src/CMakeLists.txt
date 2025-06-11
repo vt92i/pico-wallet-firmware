@@ -1,7 +1,7 @@
 add_executable(${PROJECT_NAME})
 
-file(GLOB_RECURSE APDU_SOURCES CONFIGURE_DEPENDS apdu/*.c)
 file(GLOB_RECURSE BIP_SOURCES CONFIGURE_DEPENDS bip/*.c)
+file(GLOB_RECURSE RPC_SOURCES CONFIGURE_DEPENDS rpc/*.c)
 file(GLOB_RECURSE SMARTCARD_SOURCES CONFIGURE_DEPENDS smartcard/*.c)
 file(GLOB_RECURSE TASK_SOURCES CONFIGURE_DEPENDS tasks/*.c)
 file(GLOB_RECURSE USB_SOURCES CONFIGURE_DEPENDS usb/*.c)
@@ -9,8 +9,8 @@ file(GLOB_RECURSE UTILS_SOURCES CONFIGURE_DEPENDS utils/*.c)
 
 set(SOURCES
     main.c
-    ${APDU_SOURCES}
     ${BIP_SOURCES}
+    ${RPC_SOURCES}
     ${SMARTCARD_SOURCES}
     ${TASK_SOURCES}
     ${USB_SOURCES}
@@ -21,7 +21,7 @@ foreach(SOURCE IN LISTS SOURCES)
     ${SOURCE}
     PROPERTIES
       COMPILE_FLAGS
-      "-Wall -Wextra -Wpedantic -Wconversion -Wfloat-conversion -Wsign-conversion"
+      "-Wall -Wextra -Wpedantic -Wconversion -Wfloat-conversion -Wsign-conversion -Werror"
   )
 endforeach()
 
