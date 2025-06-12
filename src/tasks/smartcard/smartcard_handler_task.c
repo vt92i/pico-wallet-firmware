@@ -20,22 +20,18 @@ QueueHandle_t smartcard_rx_queue, smartcard_tx_queue;
 void smartcard_handler_task(void* pvParams) {
   (void)pvParams;
 
-  smartcard_command_t command;
-  smartcard_response_t response = {
-      .data = NULL,
-      .data_len = 0,
-  };
+  smartcard_request_t request;
+  smartcard_response_t response;
 
   for (;;) {
-    if (xQueueReceive(smartcard_rx_queue, &command, portMAX_DELAY) == pdPASS) {
-      switch (command) {
+    if (xQueueReceive(smartcard_rx_queue, &request, portMAX_DELAY) == pdPASS) {
+      switch (request.command) {
         case SMARTCARD_INITIALIZE_WALLET: {
           response.data_len = 0;
 
           if (smartcard_get_wallet_status() == SMARTCARD_STATUS_OK) {
             response.status = SMARTCARD_STATUS_ERROR;
             xQueueOverwrite(smartcard_tx_queue, &response);
-            printf("Wallet already initialized.\n");
             break;
           }
 
@@ -43,55 +39,36 @@ void smartcard_handler_task(void* pvParams) {
           if (smartcard_initialize_wallet(mnemonic) != SMARTCARD_STATUS_OK) {
             response.status = SMARTCARD_STATUS_ERROR;
             xQueueOverwrite(smartcard_tx_queue, &response);
-            printf("Failed to initialize wallet.\n");
             break;
           }
 
-          printf("Mnemonic:\n");
-          for (int i = 0; i < BIP39_MNEMONIC_LENGTH; ++i) {
-            printf("%s ", mnemonic[i]);
-          }
-          printf("\n");
-
-          size_t total_len = 0;
-          for (int i = 0; i < 24; ++i) {
-            total_len += strlen(mnemonic[i]);
-            if (i < 23) total_len += 1;
+          for (size_t i = 0; i < BIP39_MNEMONIC_LENGTH; i++) {
+            response.data_len += (uint8_t)strlen(mnemonic[i]);
+            if (i < BIP39_MNEMONIC_LENGTH - 1) response.data_len += 1;
           }
 
-          char* combined_mnemonic = pvPortMalloc(total_len + 1);
-          if (combined_mnemonic == NULL) {
+          response.data = pvPortMalloc(response.data_len + 1);
+          if (response.data == NULL) {
             response.status = SMARTCARD_STATUS_ERROR;
+            response.data = NULL;
+            response.data_len = 0;
+
             xQueueOverwrite(smartcard_tx_queue, &response);
-            printf("Memory allocation failed for mnemonic.\n");
             mbedtls_platform_zeroize(mnemonic, sizeof(char*) * BIP39_MNEMONIC_LENGTH);
             break;
           }
 
-          combined_mnemonic[0] = '\0';
-          for (int i = 0; i < BIP39_MNEMONIC_LENGTH; ++i) {
-            strcat(combined_mnemonic, mnemonic[i]);
-            if (i < BIP39_MNEMONIC_LENGTH - 1) strcat(combined_mnemonic, " ");
+          response.data[0] = '\0';
+          for (size_t i = 0; i < BIP39_MNEMONIC_LENGTH; i++) {
+            response.data = (uint8_t*)strcat((char*)response.data, mnemonic[i]);
+            if (i < BIP39_MNEMONIC_LENGTH - 1) response.data = (uint8_t*)strcat((char*)response.data, " ");
           }
-
-          uint8_t* mnemonic_byte = (uint8_t*)combined_mnemonic;
-
-          printf("hex mnemonic: %d bytes\n", total_len);
-          for (size_t i = 0; i < total_len; ++i) {
-            printf("%02x", mnemonic_byte[i]);
-          }
-          printf("\n");
-
           response.status = SMARTCARD_STATUS_OK;
-          response.data = mnemonic_byte;
-          response.data_len = (uint8_t)total_len;
 
           xQueueOverwrite(smartcard_tx_queue, &response);
-          printf("Wallet initialized successfully.\n");
 
-          // mbedtls_platform_zeroize(mnemonic, sizeof(char*) * BIP39_MNEMONIC_LENGTH);
-          // mbedtls_platform_zeroize(combined_mnemonic, total_len + 1);
-          vPortFree(combined_mnemonic);
+          mbedtls_platform_zeroize(mnemonic, sizeof(char*) * BIP39_MNEMONIC_LENGTH);
+          vPortFree(response.data);
 
           break;
         }
@@ -109,11 +86,19 @@ void smartcard_handler_task(void* pvParams) {
           break;
         }
 
-        default: {
-          response.status = SMARTCARD_STATUS_ERROR;
-          response.data = NULL;
-          response.data_len = 0;
-          xQueueOverwrite(smartcard_tx_queue, &response);
+        case SMARTCARD_GET_WALLET_STATUS: {
+          break;
+        }
+
+        case SMARTCARD_GET_ADDRESS: {
+          break;
+        }
+
+        case SMARTCARD_GET_PUBLIC_KEY: {
+          break;
+        }
+
+        case SMARTCARD_SIGN_TRANSACTION: {
           break;
         }
       }

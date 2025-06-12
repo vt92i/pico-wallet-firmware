@@ -45,7 +45,7 @@ set(CORE_LIBS
     tinyusb_device
     tinyusb_board)
 
-set(EXTERNAL_LIBS micro_ecc ssd1306)
+set(EXTERNAL_LIBS micro_ecc)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CORE_LIBS} ${EXTERNAL_LIBS})
 

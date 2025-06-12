@@ -30,5 +30,4 @@ add_library(micro_ecc STATIC ${micro_ecc_SOURCE_DIR}/uECC.c
                              ${micro_ecc_SOURCE_DIR}/uECC.h)
 target_include_directories(micro_ecc PUBLIC ${micro_ecc_SOURCE_DIR})
 
-add_subdirectory(lib/ssd1306)
 add_subdirectory(src)

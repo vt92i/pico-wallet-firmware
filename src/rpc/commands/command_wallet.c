@@ -14,8 +14,10 @@
 bool handle_initialize_wallet(const rpc_payload_t* payload, rpc_buffer_t* response) {
   (void)payload;
 
-  smartcard_command_t cmd = SMARTCARD_INITIALIZE_WALLET;
-  xQueueOverwrite(smartcard_rx_queue, &cmd);
+  smartcard_request_t req = {
+      .command = SMARTCARD_INITIALIZE_WALLET,
+  };
+  xQueueOverwrite(smartcard_rx_queue, &req);
 
   smartcard_response_t resp;
   if (xQueueReceive(smartcard_tx_queue, &resp, portMAX_DELAY) != pdPASS) {
@@ -38,7 +40,9 @@ bool handle_initialize_wallet(const rpc_payload_t* payload, rpc_buffer_t* respon
 bool handle_reset_wallet(const rpc_payload_t* payload, rpc_buffer_t* response) {
   (void)payload;
 
-  smartcard_command_t cmd = SMARTCARD_RESET_WALLET;
+  smartcard_request_t cmd = {
+      .command = SMARTCARD_RESET_WALLET,
+  };
   xQueueOverwrite(smartcard_rx_queue, &cmd);
 
   smartcard_response_t resp;

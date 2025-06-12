@@ -3,11 +3,18 @@
 #include <stdint.h>
 
 #include "bip/bip39.h"
+#include "commands/smartcard_commands.h"
 
 typedef enum {
   SMARTCARD_STATUS_OK = 0x00,
   SMARTCARD_STATUS_ERROR = 0xFF,
 } smartcard_status_t;
+
+typedef struct {
+  smartcard_command_t command;
+  uint8_t* data;
+  uint8_t data_len;
+} smartcard_request_t;
 
 typedef struct {
   uint8_t* data;
