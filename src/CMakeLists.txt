@@ -25,8 +25,6 @@ foreach(SOURCE IN LISTS SOURCES)
   )
 endforeach()
 
-target_compile_options(${PROJECT_NAME} PRIVATE --sysroot=/usr/arm-none-eabi)
-
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCES})
 
 target_include_directories(
