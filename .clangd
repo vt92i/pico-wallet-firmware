@@ -1,0 +1,8 @@
+CompileFlags:
+  Add: 
+    - "--target=arm-none-eabi"
+    - "-isystem /usr/arm-none-eabi/include"
+    - "-isystem /usr/lib/gcc/arm-none-eabi/14.2.0/include"
+    - "--sysroot=/usr/arm-none-eabi"
+    - "-ferror-limit=0"
+  Compiler: "/usr/bin/arm-none-eabi-gcc"
