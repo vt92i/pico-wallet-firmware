@@ -73,6 +73,28 @@ void smartcard_handler_task(void* pvParams) {
           break;
         }
 
+        case SMARTCARD_RESTORE_WALLET: {
+          response.data_len = 0;
+
+          if (smartcard_get_wallet_status() == SMARTCARD_STATUS_OK) {
+            response.status = SMARTCARD_STATUS_ERROR;
+            xQueueOverwrite(smartcard_tx_queue, &response);
+            break;
+          }
+
+          char* mnemonic[BIP39_MNEMONIC_LENGTH] = {0};
+
+          char* token = strtok((char*)request.data, " ");
+          for (size_t i = 0; token != NULL && i < BIP39_MNEMONIC_LENGTH; i++, token = strtok(NULL, " ")) {
+            mnemonic[i] = token;
+          }
+
+          response.status = smartcard_restore_wallet((const char**)mnemonic);
+          xQueueOverwrite(smartcard_tx_queue, &response);
+
+          break;
+        }
+
         case SMARTCARD_RESET_WALLET: {
           int rc = flash_safe_execute(call_flash_range_erase, (void*)FLASH_TARGET_OFFSET, UINT32_MAX);
           if (rc != 0) {

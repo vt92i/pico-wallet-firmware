@@ -55,6 +55,56 @@ bip39_status_t bip39_generate_mnemonic(const uint8_t entropy[static BIP39_ENTROP
   return BIP39_STATUS_OK;
 }
 
+bip39_status_t bip39_check_mnemonic(const char* mnemonic[static BIP39_MNEMONIC_LENGTH]) {
+  uint16_t indices[BIP39_MNEMONIC_LENGTH] = {0};
+  size_t checksum_bits_len = BIP39_ENTROPY_BITS / 32;
+  size_t total_bits = BIP39_ENTROPY_BITS + checksum_bits_len;
+  size_t total_bytes = (total_bits + 7) / 8;
+
+  uint8_t data[total_bytes];
+  memset(data, 0, sizeof(data));
+
+  for (size_t i = 0; i < BIP39_MNEMONIC_LENGTH; i++) {
+    int found = 0;
+    for (uint16_t j = 0; j < 2048; j++) {
+      if (strcmp(mnemonic[i], BIP39_WORDS[j]) == 0) {
+        indices[i] = j;
+        found = 1;
+        break;
+      }
+    }
+    if (!found) return BIP39_STATUS_ERR_INVALID_WORD;
+  }
+
+  size_t bit_offset = 0;
+  for (size_t i = 0; i < BIP39_MNEMONIC_LENGTH; i++) {
+    uint16_t idx = indices[i];
+    for (int b = 10; b >= 0; b--) {
+      if ((idx >> b) & 1) data[bit_offset / 8] |= (1 << (7 - (bit_offset % 8)));
+      bit_offset++;
+    }
+  }
+
+  uint8_t* entropy = data;
+  uint8_t checksum_input_byte = data[BIP39_ENTROPY_SIZE];
+  uint8_t checksum_given = checksum_input_byte >> (8 - checksum_bits_len);
+
+  uint8_t sha256_digest[32] = {0};
+  if (mbedtls_sha256_ret(entropy, BIP39_ENTROPY_SIZE, sha256_digest, 0) != 0) {
+    mbedtls_platform_zeroize(data, sizeof(data));
+    return BIP39_STATUS_ERR_SHA256;
+  }
+
+  uint8_t checksum_expected = sha256_digest[0] >> (8 - checksum_bits_len);
+
+  mbedtls_platform_zeroize(sha256_digest, sizeof(sha256_digest));
+  mbedtls_platform_zeroize(data, sizeof(data));
+
+  if (checksum_expected != checksum_given) return BIP39_STATUS_ERR_INVALID_CHECKSUM;
+
+  return BIP39_STATUS_OK;
+}
+
 bip39_status_t bip39_generate_seed(const char* mnemonic[static BIP39_MNEMONIC_LENGTH],
                                    uint8_t seed[static BIP39_SEED_SIZE]) {
   uint8_t m[BIP39_MNEMONIC_LENGTH * BIP39_MAX_WORD_SIZE + 1] = {0};

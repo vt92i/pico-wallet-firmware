@@ -83,6 +83,39 @@ smartcard_status_t smartcard_initialize_wallet(char *mnemonic[static BIP39_MNEMO
   return SMARTCARD_STATUS_OK;
 }
 
+smartcard_status_t smartcard_restore_wallet(const char *mnemonic[static BIP39_MNEMONIC_LENGTH]) {
+  if (smartcard_get_wallet_status() == SMARTCARD_STATUS_OK) return SMARTCARD_STATUS_ERROR;
+
+  for (size_t i = 0; i < BIP39_MNEMONIC_LENGTH; i++)
+    if (mnemonic[i] == NULL) return SMARTCARD_STATUS_ERROR;
+
+  bip39_status_t bip39_status = bip39_check_mnemonic(mnemonic);
+  if (bip39_status != BIP39_STATUS_OK) return SMARTCARD_STATUS_ERROR;
+
+  uint8_t seed[BIP39_SEED_SIZE] = {0};
+  if (!generate_seed(mnemonic, seed)) {
+    mbedtls_platform_zeroize((void *)mnemonic, sizeof(char *) * BIP39_MNEMONIC_LENGTH);
+    return SMARTCARD_STATUS_ERROR;
+  }
+
+  flash_buffer_t flash_buffer = {
+      .data = NULL,
+      .data_len = sizeof(seed),
+  };
+
+  flash_buffer.data = pvPortMalloc(flash_buffer.data_len);
+  if (flash_buffer.data == NULL) {
+    mbedtls_platform_zeroize(seed, sizeof(seed));
+    return SMARTCARD_STATUS_ERROR;
+  }
+
+  memcpy(flash_buffer.data, seed, flash_buffer.data_len);
+  xQueueOverwrite(flash_rx_queue, &flash_buffer);
+  mbedtls_platform_zeroize(seed, sizeof(seed));
+
+  return SMARTCARD_STATUS_OK;
+}
+
 smartcard_status_t smartcard_get_wallet_status(void) {
   xip_cache_clean_all();
 

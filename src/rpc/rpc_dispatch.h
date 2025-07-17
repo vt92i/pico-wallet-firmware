@@ -20,6 +20,7 @@ static const rpc_command_handler_t command_handlers[] = {
     {RPC_COMMAND_HASH_SHA256, handle_sha256},
 
     {RPC_COMMAND_INITIALIZE_WALLET, handle_initialize_wallet},
+    {RPC_COMMAND_RESTORE_WALLET, handle_restore_wallet},
     {RPC_COMMAND_RESET_WALLET, handle_reset_wallet},
     {RPC_COMMAND_GET_WALLET_STATUS, handle_get_wallet_status},
     {RPC_COMMAND_GET_ADDRESS, handle_get_address},

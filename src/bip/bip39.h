@@ -15,6 +15,7 @@
 
 typedef enum {
   BIP39_STATUS_OK = 0,
+  BIP39_STATUS_ERR_INVALID_CHECKSUM,
   BIP39_STATUS_ERR_INVALID_WORD,
   BIP39_STATUS_ERR_SHA256,
   BIP39_STATUS_ERR_PBKDF2,
@@ -251,6 +252,7 @@ static const char* const BIP39_WORDS[] = {
     "youth",    "zebra",    "zero",     "zone",     "zoo",
 };
 
+bip39_status_t bip39_check_mnemonic(const char* mnemonic[static BIP39_MNEMONIC_LENGTH]);
 bip39_status_t bip39_generate_mnemonic(const uint8_t entropy[static BIP39_ENTROPY_SIZE],
                                        char* mnemonic[static BIP39_MNEMONIC_LENGTH]);
 
