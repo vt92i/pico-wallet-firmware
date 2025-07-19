@@ -26,6 +26,31 @@ void smartcard_handler_task(void* pvParams) {
   for (;;) {
     if (xQueueReceive(smartcard_rx_queue, &request, portMAX_DELAY) == pdPASS) {
       switch (request.command) {
+        case SMARTCARD_UNLOCK: {
+          response.data_len = 0;
+          if (smartcard_get_wallet_status() != SMARTCARD_STATUS_OK) {
+            response.status = SMARTCARD_STATUS_ERROR;
+            xQueueOverwrite(smartcard_tx_queue, &response);
+            break;
+          }
+
+          const char* password = (const char*)request.data;
+          uint8_t password_len = (uint8_t)strlen(password);
+
+          printf("Password: %s\n", password);
+          printf("Password length: %d\n", password_len);
+
+          if (smartcard_unlock(password, password_len) != SMARTCARD_STATUS_OK) {
+            response.status = SMARTCARD_STATUS_ERROR;
+            xQueueOverwrite(smartcard_tx_queue, &response);
+            break;
+          }
+
+          response.status = SMARTCARD_STATUS_OK;
+          xQueueOverwrite(smartcard_tx_queue, &response);
+          break;
+        }
+
         case SMARTCARD_INITIALIZE_WALLET: {
           response.data_len = 0;
 
@@ -35,8 +60,14 @@ void smartcard_handler_task(void* pvParams) {
             break;
           }
 
+          const char* password = (const char*)request.data;
+          uint8_t password_len = (uint8_t)strlen(password);
+
+          printf("Password: %s\n", password);
+          printf("Password length: %d\n", password_len);
+
           char* mnemonic[BIP39_MNEMONIC_LENGTH] = {0};
-          if (smartcard_initialize_wallet(mnemonic) != SMARTCARD_STATUS_OK) {
+          if (smartcard_initialize_wallet(password, password_len, mnemonic) != SMARTCARD_STATUS_OK) {
             response.status = SMARTCARD_STATUS_ERROR;
             xQueueOverwrite(smartcard_tx_queue, &response);
             break;
@@ -87,9 +118,14 @@ void smartcard_handler_task(void* pvParams) {
           char* token = strtok((char*)request.data, " ");
           for (size_t i = 0; token != NULL && i < BIP39_MNEMONIC_LENGTH; i++, token = strtok(NULL, " ")) {
             mnemonic[i] = token;
+            printf("Mnemonic[%zu]: %s\n", i, mnemonic[i]);
           }
 
-          response.status = smartcard_restore_wallet((const char**)mnemonic);
+          // token = strtok(NULL, " ");
+          const char* password = (const char*)token;
+          uint8_t password_len = (uint8_t)strlen(password);
+
+          response.status = smartcard_restore_wallet(password, password_len, (const char**)mnemonic);
           xQueueOverwrite(smartcard_tx_queue, &response);
 
           break;

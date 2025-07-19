@@ -10,4 +10,5 @@ typedef enum {
   SMARTCARD_GET_PUBLIC_KEY,
 
   SMARTCARD_SIGN_TRANSACTION,
+  SMARTCARD_UNLOCK,
 } smartcard_command_t;

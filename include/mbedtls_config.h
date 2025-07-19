@@ -9,6 +9,9 @@
 #define MBEDTLS_CTR_DRBG_C               /**< Enable CTR_DRBG (Deterministic Random Bit Generator). */
 
 #define MBEDTLS_MD_C                     /**< Enable generic message digest wrapper. */
+#define MBEDTLS_AES_C                    /**< Enable AES (Advanced Encryption Standard) block cipher. */
+#define MBEDTLS_CIPHER_C                 /**< Enable generic cipher wrapper. */
+#define MBEDTLS_GCM_C                    /**< Enable Galois/Counter Mode (GCM) for authenticated encryption. */
 #define MBEDTLS_PKCS5_C                  /**< Enable PKCS#5 functions (e.g., PBKDF2). */
 
 #define MBEDTLS_RIPEMD160_C              /**< Enable RIPEMD-160 cryptographic hash functions. */

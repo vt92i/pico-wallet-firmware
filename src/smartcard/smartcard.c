@@ -5,9 +5,13 @@
 #include <string.h>
 
 #include "hardware/xip_cache.h"
+#include "pico/flash.h"
 #include "pico/rand.h"
+#include "pico/unique_id.h"
 
+#include "mbedtls/gcm.h"
 #include "mbedtls/md.h"
+#include "mbedtls/pkcs5.h"
 #include "mbedtls/platform_util.h"
 #include "mbedtls/sha256.h"
 
@@ -16,6 +20,11 @@
 #include "tasks/flash/flash_writer_task.h"
 #include "uECC.h"
 #include "utils/flash.h"
+
+uint8_t seed[BIP39_SEED_SIZE] = {0};
+// static bool is_unlocked = false;
+
+static uint8_t iv[12] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b};
 
 static void generate_entropy(uint8_t entropy[static BIP39_ENTROPY_SIZE]) {
   rng_128_t rng1, rng2;
@@ -52,38 +61,169 @@ static bool generate_seed(const char *mnemonic[static BIP39_MNEMONIC_LENGTH], ui
   return true;
 }
 
-smartcard_status_t smartcard_initialize_wallet(char *mnemonic[static BIP39_MNEMONIC_LENGTH]) {
+smartcard_status_t smartcard_unlock(const char *password, const uint8_t password_len) {
+  if (smartcard_get_wallet_status() != SMARTCARD_STATUS_OK) return SMARTCARD_STATUS_ERROR;
+
+  mbedtls_md_context_t ctx;
+  const mbedtls_md_info_t *md_info;
+
+  mbedtls_md_init(&ctx);
+  md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+  int ret = mbedtls_md_setup(&ctx, md_info, 1);
+
+  if (ret != 0) {
+    mbedtls_md_free(&ctx);
+    flash_safe_execute(call_flash_range_erase, (void *)FLASH_TARGET_OFFSET, UINT32_MAX);
+    return SMARTCARD_STATUS_ERROR;
+  }
+
+  char salt[32] = {0};
+  uint8_t key[32] = {0};
+
+  pico_get_unique_board_id_string(salt, sizeof(salt));
+
+  ret = mbedtls_pkcs5_pbkdf2_hmac(&ctx, (const uint8_t *)password, password_len, (const uint8_t *)salt,
+                                  strlen((const char *)salt), 1024 * 8, sizeof(key), key);
+
+  mbedtls_md_free(&ctx);
+
+  if (ret != 0) {
+    flash_safe_execute(call_flash_range_erase, (void *)FLASH_TARGET_OFFSET, UINT32_MAX);
+    return SMARTCARD_STATUS_ERROR;
+  }
+
+  mbedtls_gcm_context gcm;
+  mbedtls_gcm_init(&gcm);
+
+  ret = mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, key, 256);
+
+  if (ret != 0) {
+    mbedtls_gcm_free(&gcm);
+    flash_safe_execute(call_flash_range_erase, (void *)FLASH_TARGET_OFFSET, UINT32_MAX);
+    return SMARTCARD_STATUS_ERROR;
+  }
+
+  uint8_t encrypted_seed[BIP39_SEED_SIZE] = {0};
+  uint8_t tag[16] = {0};
+
+  for (size_t i = 0; i < BIP39_SEED_SIZE; i++) encrypted_seed[i] = flash_target_contents[i + 1];
+  for (size_t i = 0; i < sizeof(tag); i++) tag[i] = flash_target_contents[BIP39_SEED_SIZE + 1 + i];
+
+  ret = mbedtls_gcm_auth_decrypt(&gcm, sizeof(encrypted_seed), iv, sizeof(iv), NULL, 0, tag, sizeof(tag),
+                                 encrypted_seed, seed);
+  mbedtls_gcm_free(&gcm);
+
+  if (ret != 0) {
+    mbedtls_platform_zeroize(seed, BIP39_SEED_SIZE);
+    flash_safe_execute(call_flash_range_erase, (void *)FLASH_TARGET_OFFSET, UINT32_MAX);
+    return SMARTCARD_STATUS_ERROR;
+  }
+
+  mbedtls_platform_zeroize(encrypted_seed, sizeof(encrypted_seed));
+  mbedtls_platform_zeroize(tag, sizeof(tag));
+
+  // is_unlocked = true;
+
+  return SMARTCARD_STATUS_OK;
+}
+
+smartcard_status_t smartcard_initialize_wallet(const char *password, const uint8_t password_len,
+                                               char *mnemonic[static BIP39_MNEMONIC_LENGTH]) {
   if (smartcard_get_wallet_status() == SMARTCARD_STATUS_OK) return SMARTCARD_STATUS_ERROR;
 
-  uint8_t seed[BIP39_SEED_SIZE] = {0};
+  uint8_t seed_n[BIP39_SEED_SIZE] = {0};
 
   if (!generate_mnemonic(mnemonic)) return SMARTCARD_STATUS_ERROR;
-  if (!generate_seed((const char **)mnemonic, seed)) {
+  if (!generate_seed((const char **)mnemonic, seed_n)) {
     mbedtls_platform_zeroize(mnemonic, sizeof(char *) * BIP39_MNEMONIC_LENGTH);
     return SMARTCARD_STATUS_ERROR;
   }
 
+  mbedtls_md_context_t ctx;
+  const mbedtls_md_info_t *md_info;
+
+  mbedtls_md_init(&ctx);
+  md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+  int ret = mbedtls_md_setup(&ctx, md_info, 1);
+
+  if (ret != 0) {
+    mbedtls_md_free(&ctx);
+    mbedtls_platform_zeroize(mnemonic, sizeof(char *) * BIP39_MNEMONIC_LENGTH);
+    mbedtls_platform_zeroize(seed_n, BIP39_SEED_SIZE);
+    return SMARTCARD_STATUS_ERROR;
+  }
+
+  char salt[32] = {0};
+  uint8_t key[32] = {0};
+
+  pico_get_unique_board_id_string(salt, sizeof(salt));
+
+  ret = mbedtls_pkcs5_pbkdf2_hmac(&ctx, (const uint8_t *)password, password_len, (const uint8_t *)salt,
+                                  strlen((const char *)salt), 1024 * 8, sizeof(key), key);
+
+  if (ret != 0) {
+    mbedtls_md_free(&ctx);
+    mbedtls_platform_zeroize(mnemonic, sizeof(char *) * BIP39_MNEMONIC_LENGTH);
+    mbedtls_platform_zeroize(seed_n, BIP39_SEED_SIZE);
+    return SMARTCARD_STATUS_ERROR;
+  }
+
+  mbedtls_md_free(&ctx);
+
+  mbedtls_gcm_context gcm;
+  mbedtls_gcm_init(&gcm);
+
+  ret = mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, key, 256);
+
+  if (ret != 0) {
+    mbedtls_gcm_free(&gcm);
+    mbedtls_platform_zeroize(mnemonic, sizeof(char *) * BIP39_MNEMONIC_LENGTH);
+    mbedtls_platform_zeroize(seed_n, BIP39_SEED_SIZE);
+    return SMARTCARD_STATUS_ERROR;
+  }
+
+  uint8_t tag[16] = {0};
+  uint8_t encrypted_seed[BIP39_SEED_SIZE] = {0};
+
+  ret = mbedtls_gcm_crypt_and_tag(&gcm, MBEDTLS_GCM_ENCRYPT, sizeof(seed_n), iv, sizeof(iv), NULL, 0, seed_n,
+                                  encrypted_seed, sizeof(tag), tag);
+
+  if (ret != 0) {
+    mbedtls_gcm_free(&gcm);
+    mbedtls_platform_zeroize(mnemonic, sizeof(char *) * BIP39_MNEMONIC_LENGTH);
+    mbedtls_platform_zeroize(seed_n, BIP39_SEED_SIZE);
+    return SMARTCARD_STATUS_ERROR;
+  }
+
+  memcpy(seed, seed_n, sizeof(seed_n));
+
+  mbedtls_gcm_free(&gcm);
+  mbedtls_platform_zeroize(key, sizeof(key));
+  mbedtls_platform_zeroize(seed_n, sizeof(seed_n));
+
   flash_buffer_t flash_buffer = {
       .data = NULL,
-      .data_len = sizeof(seed),
+      .data_len = sizeof(encrypted_seed) + sizeof(tag),
   };
 
   flash_buffer.data = pvPortMalloc(flash_buffer.data_len);
   if (flash_buffer.data == NULL) {
     mbedtls_platform_zeroize(mnemonic, sizeof(char *) * BIP39_MNEMONIC_LENGTH);
-    mbedtls_platform_zeroize(seed, sizeof(seed));
+    mbedtls_platform_zeroize(encrypted_seed, sizeof(encrypted_seed));
     return SMARTCARD_STATUS_ERROR;
   }
 
-  memcpy(flash_buffer.data, seed, flash_buffer.data_len);
+  memcpy(flash_buffer.data, encrypted_seed, flash_buffer.data_len);
+  memcpy(flash_buffer.data + sizeof(encrypted_seed), tag, sizeof(tag));
   xQueueOverwrite(flash_rx_queue, &flash_buffer);
-  mbedtls_platform_zeroize(seed, sizeof(seed));
+  mbedtls_platform_zeroize(encrypted_seed, sizeof(encrypted_seed));
   // vPortFree(flash_buffer.data);  // Don't free here, as the flash writer task will handle it
 
   return SMARTCARD_STATUS_OK;
 }
 
-smartcard_status_t smartcard_restore_wallet(const char *mnemonic[static BIP39_MNEMONIC_LENGTH]) {
+smartcard_status_t smartcard_restore_wallet(const char *password, const uint8_t password_len,
+                                            const char *mnemonic[static BIP39_MNEMONIC_LENGTH]) {
   if (smartcard_get_wallet_status() == SMARTCARD_STATUS_OK) return SMARTCARD_STATUS_ERROR;
 
   for (size_t i = 0; i < BIP39_MNEMONIC_LENGTH; i++)
@@ -92,26 +232,90 @@ smartcard_status_t smartcard_restore_wallet(const char *mnemonic[static BIP39_MN
   bip39_status_t bip39_status = bip39_check_mnemonic(mnemonic);
   if (bip39_status != BIP39_STATUS_OK) return SMARTCARD_STATUS_ERROR;
 
-  uint8_t seed[BIP39_SEED_SIZE] = {0};
-  if (!generate_seed(mnemonic, seed)) {
+  uint8_t seed_n[BIP39_SEED_SIZE] = {0};
+  if (!generate_seed(mnemonic, seed_n)) {
     mbedtls_platform_zeroize((void *)mnemonic, sizeof(char *) * BIP39_MNEMONIC_LENGTH);
     return SMARTCARD_STATUS_ERROR;
   }
 
+  mbedtls_md_context_t ctx;
+  const mbedtls_md_info_t *md_info;
+
+  mbedtls_md_init(&ctx);
+  md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+  int ret = mbedtls_md_setup(&ctx, md_info, 1);
+
+  if (ret != 0) {
+    mbedtls_md_free(&ctx);
+    mbedtls_platform_zeroize(mnemonic, sizeof(char *) * BIP39_MNEMONIC_LENGTH);
+    mbedtls_platform_zeroize(seed_n, BIP39_SEED_SIZE);
+    return SMARTCARD_STATUS_ERROR;
+  }
+
+  char salt[32] = {0};
+  uint8_t key[32] = {0};
+
+  pico_get_unique_board_id_string(salt, sizeof(salt));
+
+  ret = mbedtls_pkcs5_pbkdf2_hmac(&ctx, (const uint8_t *)password, password_len, (const uint8_t *)salt,
+                                  strlen((const char *)salt), 1024 * 8, sizeof(key), key);
+
+  if (ret != 0) {
+    mbedtls_md_free(&ctx);
+    mbedtls_platform_zeroize(mnemonic, sizeof(char *) * BIP39_MNEMONIC_LENGTH);
+    mbedtls_platform_zeroize(seed_n, BIP39_SEED_SIZE);
+    return SMARTCARD_STATUS_ERROR;
+  }
+
+  mbedtls_md_free(&ctx);
+
+  mbedtls_gcm_context gcm;
+  mbedtls_gcm_init(&gcm);
+
+  ret = mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, key, 256);
+
+  if (ret != 0) {
+    mbedtls_gcm_free(&gcm);
+    mbedtls_platform_zeroize(mnemonic, sizeof(char *) * BIP39_MNEMONIC_LENGTH);
+    mbedtls_platform_zeroize(seed_n, BIP39_SEED_SIZE);
+    return SMARTCARD_STATUS_ERROR;
+  }
+
+  uint8_t tag[16] = {0};
+  uint8_t encrypted_seed[BIP39_SEED_SIZE] = {0};
+
+  ret = mbedtls_gcm_crypt_and_tag(&gcm, MBEDTLS_GCM_ENCRYPT, sizeof(seed_n), iv, sizeof(iv), NULL, 0, seed_n,
+                                  encrypted_seed, sizeof(tag), tag);
+
+  if (ret != 0) {
+    mbedtls_gcm_free(&gcm);
+    mbedtls_platform_zeroize(mnemonic, sizeof(char *) * BIP39_MNEMONIC_LENGTH);
+    mbedtls_platform_zeroize(seed_n, BIP39_SEED_SIZE);
+    return SMARTCARD_STATUS_ERROR;
+  }
+
+  memcpy(seed, seed_n, sizeof(seed_n));
+
+  mbedtls_gcm_free(&gcm);
+  mbedtls_platform_zeroize(key, sizeof(key));
+  mbedtls_platform_zeroize(seed_n, sizeof(seed_n));
+
   flash_buffer_t flash_buffer = {
       .data = NULL,
-      .data_len = sizeof(seed),
+      .data_len = sizeof(encrypted_seed) + sizeof(tag),
   };
 
   flash_buffer.data = pvPortMalloc(flash_buffer.data_len);
   if (flash_buffer.data == NULL) {
-    mbedtls_platform_zeroize(seed, sizeof(seed));
+    mbedtls_platform_zeroize(mnemonic, sizeof(char *) * BIP39_MNEMONIC_LENGTH);
+    mbedtls_platform_zeroize(encrypted_seed, sizeof(encrypted_seed));
     return SMARTCARD_STATUS_ERROR;
   }
 
-  memcpy(flash_buffer.data, seed, flash_buffer.data_len);
+  memcpy(flash_buffer.data, encrypted_seed, flash_buffer.data_len);
+  memcpy(flash_buffer.data + sizeof(encrypted_seed), tag, sizeof(tag));
   xQueueOverwrite(flash_rx_queue, &flash_buffer);
-  mbedtls_platform_zeroize(seed, sizeof(seed));
+  mbedtls_platform_zeroize(encrypted_seed, sizeof(encrypted_seed));
 
   return SMARTCARD_STATUS_OK;
 }
@@ -126,8 +330,8 @@ smartcard_status_t smartcard_get_wallet_status(void) {
 smartcard_status_t smartcard_get_address(const uint8_t index, char address[static BIP84_ADDRESS_SIZE]) {
   if (smartcard_get_wallet_status() != SMARTCARD_STATUS_OK) return SMARTCARD_STATUS_ERROR;
 
-  uint8_t seed[BIP39_SEED_SIZE] = {0};
-  for (size_t i = 0; i < BIP39_SEED_SIZE; i++) seed[i] = flash_target_contents[i + 1];
+  // uint8_t seed[BIP39_SEED_SIZE] = {0};
+  // for (size_t i = 0; i < BIP39_SEED_SIZE; i++) seed[i] = flash_target_contents[i + 1];
 
   char root_key[BIP32_ROOT_KEY_SIZE] = {0};
   bip32_status_t bip32_status = bip32_generate_root_key(seed, root_key);
@@ -157,8 +361,8 @@ smartcard_status_t smartcard_get_address(const uint8_t index, char address[stati
 smartcard_status_t smartcard_get_public_key(const uint8_t index, uint8_t public_key[static BIP84_PUBLIC_KEY_SIZE]) {
   if (smartcard_get_wallet_status() != SMARTCARD_STATUS_OK) return SMARTCARD_STATUS_ERROR;
 
-  uint8_t seed[BIP39_SEED_SIZE] = {0};
-  for (size_t i = 0; i < BIP39_SEED_SIZE; i++) seed[i] = flash_target_contents[i + 1];
+  // uint8_t seed[BIP39_SEED_SIZE] = {0};
+  // for (size_t i = 0; i < BIP39_SEED_SIZE; i++) seed[i] = flash_target_contents[i + 1];
 
   char root_key[BIP32_ROOT_KEY_SIZE] = {0};
   bip32_status_t bip32_status = bip32_generate_root_key(seed, root_key);
@@ -188,8 +392,8 @@ smartcard_status_t smartcard_get_public_key(const uint8_t index, uint8_t public_
 smartcard_status_t smartcard_get_private_key(const uint8_t index, uint8_t private_key[static BIP84_PRIVATE_KEY_SIZE]) {
   if (smartcard_get_wallet_status() != SMARTCARD_STATUS_OK) return SMARTCARD_STATUS_ERROR;
 
-  uint8_t seed[BIP39_SEED_SIZE] = {0};
-  for (size_t i = 0; i < BIP39_SEED_SIZE; i++) seed[i] = flash_target_contents[i + 1];
+  // uint8_t seed[BIP39_SEED_SIZE] = {0};
+  // for (size_t i = 0; i < BIP39_SEED_SIZE; i++) seed[i] = flash_target_contents[i + 1];
 
   char root_key[BIP32_ROOT_KEY_SIZE] = {0};
   bip32_status_t bip32_status = bip32_generate_root_key(seed, root_key);

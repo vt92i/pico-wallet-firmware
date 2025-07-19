@@ -15,5 +15,5 @@ typedef enum {
   RPC_COMMAND_GET_PUBLIC_KEY = 0xA5,
 
   RPC_COMMAND_SIGN_TRANSACTION = 0xA6,
-
+  RPC_COMMAND_UNLOCK_WALLET = 0xA7,
 } rpc_command_t;

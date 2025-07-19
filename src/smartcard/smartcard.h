@@ -23,8 +23,13 @@ typedef struct {
   smartcard_status_t status;
 } smartcard_response_t;
 
-smartcard_status_t smartcard_initialize_wallet(char* mnemonic[static BIP39_MNEMONIC_LENGTH]);
-smartcard_status_t smartcard_restore_wallet(const char* mnemonic[static BIP39_MNEMONIC_LENGTH]);
+extern uint8_t seed[BIP39_SEED_SIZE];
+
+smartcard_status_t smartcard_unlock(const char* password, const uint8_t password_len);
+smartcard_status_t smartcard_initialize_wallet(const char* password, const uint8_t password_len,
+                                               char* mnemonic[static BIP39_MNEMONIC_LENGTH]);
+smartcard_status_t smartcard_restore_wallet(const char* password, const uint8_t password_len,
+                                            const char* mnemonic[static BIP39_MNEMONIC_LENGTH]);
 smartcard_status_t smartcard_get_wallet_status(void);
 smartcard_status_t smartcard_get_address(const uint8_t index, char address[static BIP84_ADDRESS_SIZE]);
 smartcard_status_t smartcard_get_public_key(const uint8_t index, uint8_t public_key[static BIP84_PUBLIC_KEY_SIZE]);

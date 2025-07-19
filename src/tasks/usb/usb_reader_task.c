@@ -4,8 +4,11 @@
 #include "queue.h"
 #include "task.h"
 
+#include "mbedtls/platform_util.h"
+
 #include "bsp/board_api.h"
 #include "rpc/rpc.h"
+#include "smartcard/smartcard.h"
 
 QueueHandle_t usb_rx_queue;
 
@@ -45,8 +48,10 @@ void usb_reader_task(void* pvParams) {
         }
       } else
         board_led_off();
-    } else
+    } else {
       board_led_off();
+      mbedtls_platform_zeroize(seed, sizeof(seed));
+    }
 
     vTaskDelay(pdMS_TO_TICKS(10));
   }

@@ -26,6 +26,7 @@ static const rpc_command_handler_t command_handlers[] = {
     {RPC_COMMAND_GET_ADDRESS, handle_get_address},
     {RPC_COMMAND_GET_PUBLIC_KEY, handle_get_public_key},
     {RPC_COMMAND_SIGN_TRANSACTION, handle_sign_transaction},
+    {RPC_COMMAND_UNLOCK_WALLET, handle_unlock_wallet},
 };
 
 #define NUM_COMMAND_HANDLERS (sizeof(command_handlers) / sizeof(command_handlers[0]))
