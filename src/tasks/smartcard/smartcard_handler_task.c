@@ -37,9 +37,6 @@ void smartcard_handler_task(void* pvParams) {
           const char* password = (const char*)request.data;
           uint8_t password_len = (uint8_t)strlen(password);
 
-          printf("Password: %s\n", password);
-          printf("Password length: %d\n", password_len);
-
           if (smartcard_unlock(password, password_len) != SMARTCARD_STATUS_OK) {
             response.status = SMARTCARD_STATUS_ERROR;
             xQueueOverwrite(smartcard_tx_queue, &response);
@@ -62,9 +59,6 @@ void smartcard_handler_task(void* pvParams) {
 
           const char* password = (const char*)request.data;
           uint8_t password_len = (uint8_t)strlen(password);
-
-          printf("Password: %s\n", password);
-          printf("Password length: %d\n", password_len);
 
           char* mnemonic[BIP39_MNEMONIC_LENGTH] = {0};
           if (smartcard_initialize_wallet(password, password_len, mnemonic) != SMARTCARD_STATUS_OK) {
