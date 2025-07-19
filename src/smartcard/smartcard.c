@@ -340,8 +340,6 @@ smartcard_status_t smartcard_get_address(const uint8_t index, char address[stati
     return SMARTCARD_STATUS_ERROR;
   }
 
-  mbedtls_platform_zeroize(seed, sizeof(seed));
-
   uint8_t public_key[BIP84_PUBLIC_KEY_SIZE] = {0};
   uint8_t private_key[BIP84_PRIVATE_KEY_SIZE] = {0};
 
@@ -371,8 +369,6 @@ smartcard_status_t smartcard_get_public_key(const uint8_t index, uint8_t public_
     return SMARTCARD_STATUS_ERROR;
   }
 
-  mbedtls_platform_zeroize(seed, sizeof(seed));
-
   char address[BIP84_ADDRESS_SIZE] = {0};
   uint8_t private_key[BIP84_PRIVATE_KEY_SIZE] = {0};
 
@@ -401,8 +397,6 @@ smartcard_status_t smartcard_get_private_key(const uint8_t index, uint8_t privat
     mbedtls_platform_zeroize(seed, sizeof(seed));
     return SMARTCARD_STATUS_ERROR;
   }
-
-  mbedtls_platform_zeroize(seed, sizeof(seed));
 
   char address[BIP84_ADDRESS_SIZE] = {0};
   uint8_t public_key[BIP84_PUBLIC_KEY_SIZE] = {0};
